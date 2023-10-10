@@ -1,0 +1,7 @@
+<?xml version="1.0"?>
+<MenuItems>
+<MenuItem id="showESPThreads">
+        <Name>Show ESPCore Handlers</Name>
+        <CallbackMethod>Menu_showCore</CallbackMethod>
+</MenuItem>
+</MenuItems>

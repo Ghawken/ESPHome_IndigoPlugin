@@ -1,0 +1,350 @@
+<?xml version="1.0"?>
+<!-- If your plugin defines device types, you can define them here.
+
+     Devices must specify their type (via the type attribute):
+
+        relay (ON/OFF/STATUS)
+        dimmer (ON/OFF/DIM/BRIGHTEN/SET BRIGHTNESS/STATUS)
+        speedcontrol (ON/OFF/SET SPEED LEVEL/SET SPEED INDEX/INCREASE/DECREASE/STATUS)
+        sensor (ON/OFF/STATUS)
+        thermostat
+        sprinkler
+        custom
+
+     The first six inherit states, actions and events from Indigo. You can
+     also specify your own custom actions and additional states, if needed.
+
+     The two Device examples below specify the relay and dimmer types.
+     
+     Devices must also specify a unique type_id - so, for instance, if you define
+     2 relay type devices then your plugin can distinguish between the two by
+     the type_id.
+-->
+
+<Devices>
+    <!-- This device illustrates how a plugin can inherit Indigo's relay
+    device behavior including on/off states, relay actions (on/off/toggle),
+    and will support Indigo and Indigo Touch's native UI for relay type
+    devices.
+    -->
+    <Device type="custom" id="espHomeMainDevice">
+    <Name>ESP Home Core Device</Name>
+  <ConfigUI>
+    <Field id="hidden" type="textfield" hidden="True"></Field>
+	<Field id="deviceSetup" type="textfield" defaultValue="false" alwaysUseInDialogHeightCalc="true" hidden="True"></Field>
+      <Field id="ESPHomeAddress"
+           type="textfield"
+           tooltip="Enter IP address to use" defaultValue="" alwaysUseInDialogHeightCalc="true">
+        <Label>ESPHome Device : IP address</Label>
+    </Field>
+        <Field id="spacedddee11" type="label" fontSize="small" alignWithControl="true" alwaysUseInDialogHeightCalc="true">
+        <Label>eg. 192.168.1.6
+            or esphome2.local
+        </Label>
+    </Field>
+	        <Field id="password"
+           type="textfield"
+           tooltip="Enter Password to use" defaultValue="" alwaysUseInDialogHeightCalc="true">
+        <Label>ESPHome Device : Password</Label>
+    </Field>
+	  <Field id="port"
+           type="textfield"
+           tooltip="Enter Port to use" defaultValue="6053" alwaysUseInDialogHeightCalc="true">
+        <Label>ESPHome Device : Port</Label>
+    </Field>
+	      <Field id="testConnection" type="button" alwaysUseInDialogHeightCalc="true" fontSize="large" fontColor="blue" >
+				<Label>Recreate Devices</Label>
+				<Title>Recreate Devices</Title>
+				<CallbackMethod>recreateDevices</CallbackMethod>
+			</Field>
+	      <Field id="setup" type="label" fontSize="large" fontColor="blue" alwaysUseInDialogHeightCalc="true" visibleBindingId="deviceSetup" dynamicReload="true" visibleBindingValue="false" >
+				<Label>Devices Require setup.  This will occur on first connection</Label>
+			</Field>
+  </ConfigUI>
+    <States>
+      <State id="deviceIsOnline">
+        <ValueType>Boolean</ValueType>
+        <TriggerLabel>Device online?</TriggerLabel>
+        <ControlPageLabel>Device online?</ControlPageLabel>
+      </State>
+        <State id="deviceStatus">
+        <ValueType>String</ValueType>
+        <TriggerLabel>Device Status</TriggerLabel>
+        <ControlPageLabel>Device Status</ControlPageLabel>
+      </State>
+			<State id="uses_password">
+		<ValueType>boolean</ValueType>
+		<TriggerLabel>Uses Password</TriggerLabel>
+		<ControlPageLabel>Uses Password</ControlPageLabel>
+	</State>
+        <State id="name">
+        <ValueType>String</ValueType>
+        <TriggerLabel>Device Name</TriggerLabel>
+        <ControlPageLabel>Device Name</ControlPageLabel>
+      </State>
+		<State id="api_version">
+        <ValueType>String</ValueType>
+        <TriggerLabel>Api Version Number</TriggerLabel>
+        <ControlPageLabel>Api Version Number</ControlPageLabel>
+      </State>
+      <State id="mac_address">
+        <ValueType>String</ValueType>
+        <TriggerLabel>Device MAC Address</TriggerLabel>
+        <ControlPageLabel>Device Mac Address</ControlPageLabel>
+      </State>
+        <State id="model">
+        <ValueType>String</ValueType>
+        <TriggerLabel>Device Model</TriggerLabel>
+        <ControlPageLabel>Device Model</ControlPageLabel>
+      </State>
+      <State id="manufacturer">
+        <ValueType>String</ValueType>
+        <TriggerLabel>Manufacturer</TriggerLabel>
+        <ControlPageLabel>Manufacturer</ControlPageLabel>
+      </State>
+		        <State id="esphome_version">
+        <ValueType>String</ValueType>
+        <TriggerLabel>ESP Home Version</TriggerLabel>
+        <ControlPageLabel>ESP Home Version</ControlPageLabel>
+      </State>
+      <State id="web_server_port">
+        <ValueType>String</ValueType>
+        <TriggerLabel>Web Server Port</TriggerLabel>
+        <ControlPageLabel>Web Server Port</ControlPageLabel>
+      </State>
+		      <State id="friendly_name">
+        <ValueType>String</ValueType>
+        <TriggerLabel>Friendly Name</TriggerLabel>
+        <ControlPageLabel>Friendly Name</ControlPageLabel>
+      </State>
+
+
+    </States>
+
+    <UiDisplayStateId>deviceStatus</UiDisplayStateId>
+  </Device>
+
+    	<Device type="thermostat" id="ESPclimate" allowUserCreation="false">
+		<Name>ESPHome Climate Device</Name>
+		<ConfigUI>
+			<Field id="SupportsStatusRequest"        type="checkbox"  defaultValue="false" hidden="true" />
+            <Field id="NumTemperatureInputs"         type="textfield" defaultValue="0"     hidden="true"/>
+            <Field id="NumHumidityInputs"            type="textfield" defaultValue="0"     hidden="true"/>
+            <Field id="SupportsHvacFanMode"          type="checkbox"  defaultValue="false" hidden="true"/>
+			<Field id="SupportsHeatSetpoint"         type="checkbox"  defaultValue="false" hidden="true"/>
+            <Field id="SupportsCoolSetpoint"         type="checkbox"  defaultValue="false" hidden="true"/>
+            <Field id="SupportsHvacOperationMode"    type="checkbox"  defaultValue="true"  hidden="true"/>
+            <Field id="ShowCoolHeatEquipmentStateUI" type="checkbox"  defaultValue="true"  hidden="true"/>
+			<Field id="address" type="menu">
+                <Label>Entity:</Label>
+                <List class="self" method="get_entity_list" filter="climate" dynamicReload="true"/>
+                <CallbackMethod>menuChanged</CallbackMethod>
+            </Field>
+		</ConfigUI>
+		<States>
+			<State id="hvac_modes">
+				<ValueType>String</ValueType>
+				<TriggerLabel>hvac_modes</TriggerLabel>
+				<ControlPageLabel>hvac_modes</ControlPageLabel>
+			</State>
+			<State id="hvac_mode">
+				<ValueType>String</ValueType>
+				<TriggerLabel>hvac_mode</TriggerLabel>
+				<ControlPageLabel>hvac_mode</ControlPageLabel>
+			</State>
+			<State id="hvac_action">
+				<ValueType>String</ValueType>
+				<TriggerLabel>hvac_action</TriggerLabel>
+				<ControlPageLabel>hvac_action</ControlPageLabel>
+			</State>
+			<State id="fan_modes">
+				<ValueType>String</ValueType>
+				<TriggerLabel>hvac_modes</TriggerLabel>
+				<ControlPageLabel>hvac_modes</ControlPageLabel>
+			</State>
+			<State id="fan_mode">
+				<ValueType>String</ValueType>
+				<TriggerLabel>hvac_mode</TriggerLabel>
+				<ControlPageLabel>hvac_mode</ControlPageLabel>
+			</State>
+			<State id="swing_modes">
+				<ValueType>String</ValueType>
+				<TriggerLabel>hvac_modes</TriggerLabel>
+				<ControlPageLabel>hvac_modes</ControlPageLabel>
+			</State>
+			<State id="swing_mode">
+				<ValueType>String</ValueType>
+				<TriggerLabel>hvac_mode</TriggerLabel>
+				<ControlPageLabel>hvac_mode</ControlPageLabel>
+			</State>
+			<State id="preset_modes">
+				<ValueType>String</ValueType>
+				<TriggerLabel>preset_modes</TriggerLabel>
+				<ControlPageLabel>preset_modes</ControlPageLabel>
+			</State>
+			<State id="preset_mode">
+				<ValueType>String</ValueType>
+				<TriggerLabel>preset_mode</TriggerLabel>
+				<ControlPageLabel>preset_mode</ControlPageLabel>
+			</State>
+			<State id="lastUpdated">
+				<ValueType>String</ValueType>
+				<TriggerLabel>lastUpdated</TriggerLabel>
+				<ControlPageLabel>lastUpdated</ControlPageLabel>
+			</State>
+			<State id="actual_state">
+				<ValueType>String</ValueType>
+				<TriggerLabel>Actual State</TriggerLabel>
+				<ControlPageLabel>Actual State</ControlPageLabel>
+			</State>
+		</States>
+	</Device>
+
+	<Device type="dimmer" id="ESPdimmerType" allowUserCreation="false">
+		<Name>ESPHome Light</Name>
+		<ConfigUI>
+			<Field id="SupportsStatusRequest" type="checkbox" hidden="true" defaultValue="false"/>
+			<Field id="address" type="menu">
+                <Label>Entity:</Label>
+                <List class="self" method="get_entity_list" filter="light" dynamicReload="true"/>
+                <CallbackMethod>menuChanged</CallbackMethod>
+			</Field>
+		</ConfigUI>
+		<States>
+			<State id="supported_color_modes">
+				<ValueType>String</ValueType>
+				<TriggerLabel>supported_color_modes</TriggerLabel>
+				<ControlPageLabel>supported_color_modes</ControlPageLabel>
+			</State>
+			<State id="lastUpdated">
+				<ValueType>String</ValueType>
+				<TriggerLabel>lastUpdated</TriggerLabel>
+				<ControlPageLabel>lastUpdated</ControlPageLabel>
+			</State>
+			<State id="actual_state">
+				<ValueType>String</ValueType>
+				<TriggerLabel>Actual State</TriggerLabel>
+				<ControlPageLabel>Actual State</ControlPageLabel>
+			</State>
+		</States>
+	</Device>
+
+	<Device type="relay" id="ESPswitchType" allowUserCreation="false">
+		<Name>ESPHome Switch</Name>
+		<ConfigUI>
+			<Field id="SupportsStatusRequest" type="checkbox" hidden="true" defaultValue="false"/>
+		</ConfigUI>
+		<States>
+			<State id="deviceStatus">
+				<ValueType>String</ValueType>
+				<TriggerLabel>deviceStatus</TriggerLabel>
+				<ControlPageLabel>deviceStatus</ControlPageLabel>
+			</State>
+			      <State id="deviceIsOnline">
+        <ValueType>Boolean</ValueType>
+        <TriggerLabel>Device online?</TriggerLabel>
+        <ControlPageLabel>Device online?</ControlPageLabel>
+      </State>
+			<State id="key">
+				<ValueType>String</ValueType>
+				<TriggerLabel>Key</TriggerLabel>
+				<ControlPageLabel>Key</ControlPageLabel>
+			</State>
+						<State id="name">
+				<ValueType>String</ValueType>
+				<TriggerLabel>Name</TriggerLabel>
+				<ControlPageLabel>Name</ControlPageLabel>
+			</State>
+		</States>
+	</Device>
+
+	<Device type="sensor" id="ESPbinarySensorType" allowUserCreation="false">>
+		<Name>ESPHome Binary Sensor</Name>
+		<ConfigUI>
+			<Field id="SupportsStatusRequest" type="checkbox" defaultValue="false" hidden="true" />
+			<Field id="SupportsOnState"       type="checkbox" defaultValue="true"  hidden="true" />
+			<Field id="SupportsSensorValue"   type="checkbox" defaultValue="false" hidden="true" />
+			<Field id="address" type="menu">
+                <Label>Entity:</Label>
+                <List class="self" method="get_entity_list" filter="binary_sensor" dynamicReload="true"/>
+                <CallbackMethod>menuChanged</CallbackMethod>
+            </Field>
+		</ConfigUI>
+		<States>
+			<State id="lastUpdated">
+				<ValueType>String</ValueType>
+				<TriggerLabel>lastUpdated</TriggerLabel>
+				<ControlPageLabel>lastUpdated</ControlPageLabel>
+			</State>
+			<State id="actual_state">
+				<ValueType>String</ValueType>
+				<TriggerLabel>Actual State</TriggerLabel>
+				<ControlPageLabel>Actual State</ControlPageLabel>
+			</State>		</States>
+	</Device>
+
+	<Device type="sensor" id="ESPsensor" allowUserCreation="false">>
+		<Name>ESPHome Sensor</Name>
+		<ConfigUI>
+			<Field id="SupportsStatusRequest" type="checkbox" defaultValue="false" hidden="true" />
+			<Field id="SupportsSensorValue"   type="checkbox" defaultValue="true"  hidden="true" />
+			<Field id="SupportsOnState"       type="checkbox" defaultValue="false" hidden="true" />
+		</ConfigUI>
+		<States>
+			<State id="deviceIsOnline">
+        <ValueType>Boolean</ValueType>
+        <TriggerLabel>Device online?</TriggerLabel>
+        <ControlPageLabel>Device online?</ControlPageLabel>
+      </State>
+			<State id="deviceStatus">
+				<ValueType>String</ValueType>
+				<TriggerLabel>deviceStatus</TriggerLabel>
+				<ControlPageLabel>deviceStatus</ControlPageLabel>
+			</State>
+						<State id="units">
+				<ValueType>String</ValueType>
+				<TriggerLabel>Units of Measurement</TriggerLabel>
+				<ControlPageLabel>Units</ControlPageLabel>
+			</State>
+			<State id="key">
+				<ValueType>String</ValueType>
+				<TriggerLabel>Key</TriggerLabel>
+				<ControlPageLabel>Key</ControlPageLabel>
+			</State>
+						<State id="name">
+				<ValueType>String</ValueType>
+				<TriggerLabel>Name</TriggerLabel>
+				<ControlPageLabel>Name</ControlPageLabel>
+			</State>
+		</States>
+	</Device>
+
+	<Device type="custom" id="ESPgeneric" allowUserCreation="false">
+		<Name>ESPHome Generic Device</Name>
+		<ConfigUI>
+			<Field id="SupportsStatusRequest" type="checkbox" defaultValue="false" hidden="true" />
+			<Field id="entity_type" type="menu">
+                <Label>Entity Type:</Label>
+                <List class="self" method="get_entity_type_list" filter="" dynamicReload="true"/>
+                <CallbackMethod>menuChanged</CallbackMethod>
+            </Field>
+			<Field id="address" type="menu">
+                <Label>Entity:</Label>
+                <List class="self" method="get_entity_list" filter="generic" dynamicReload="true"/>
+                <CallbackMethod>menuChanged</CallbackMethod>
+            </Field>
+		</ConfigUI>
+		<States>
+			<State id="lastUpdated">
+				<ValueType>String</ValueType>
+				<TriggerLabel>lastUpdated</TriggerLabel>
+				<ControlPageLabel>lastUpdated</ControlPageLabel>
+			</State>
+			<State id="actual_state">
+				<ValueType>String</ValueType>
+				<TriggerLabel>Actual State</TriggerLabel>
+				<ControlPageLabel>Actual State</ControlPageLabel>
+			</State>
+		</States>
+	</Device>
+</Devices>
