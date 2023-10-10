@@ -120,6 +120,12 @@ Live updating and ability to turn on/turn off switch devices currently.
 
 If need to recreate Devices as have some changes - delete current devices (sorry might update this aspect)
 and then press Recreate Devices.
+
+All Sensors and Switches (the only devices this version supports are created as a Device Group)
+The main Core device I have left outside of this group so you can delete and add sensors etc. more easily.
+
+![](Images/GroupedDevices.png)
+
 ![](Images/ExampleDevicesCreated.png)
 
 ![](Images/States.png)
