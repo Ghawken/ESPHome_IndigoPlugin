@@ -156,6 +156,7 @@ class ESPHome4Indigo:
         self.enable_linked()
 
 
+
     async def setupDevices(self, mainESPCoredevice, device_info, entities, services, api_version):
         self.plugin.logger.info(f"Creating child devices for {mainESPCoredevice.name}")
         await self.updateDeviceInfo(mainESPCoredevice, device_info, api_version)
