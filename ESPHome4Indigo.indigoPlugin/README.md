@@ -111,9 +111,17 @@ Essentially Nothing will happen all going well except the plugin will start.
 Next create a ESPHome4Indigo Core Device (the only device option)
 Name it ideally before much else...
 ![](Images/ESPHomeCore.png)
+
 Enter the IP address of you ESPHome device, password and port (defaults to 6053)
 Press Save:
+
 All the Sensor devices, and all the Switch devices connected to this ESPHome device will be created in Indigo.
 Live updating and ability to turn on/turn off switch devices currently.
+
+If need to recreate Devices as have some changes - delete current devices (sorry might update this aspect)
+and then press Recreate Devices.
+![](Images/ExampleDevicesCreated.png)
+
+![](Images/States.png)
 
 

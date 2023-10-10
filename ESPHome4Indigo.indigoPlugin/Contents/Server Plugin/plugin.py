@@ -153,7 +153,6 @@ class ESPHome4Indigo:
         ]
         mainESPCoredevice.updateStatesOnServer(updatedStates)
         mainESPCoredevice.updateStateImageOnServer(indigo.kStateImageSel.PowerOn)
-
         self.enable_linked()
 
 
