@@ -128,7 +128,12 @@ class ESPHome4Indigo:
                                 if self.plugin.debug2:
                                     self.plugin.logger.debug(f"Matching device {device.name} to received state {state} found.  Updating")
                                 device.updateStateOnServer(key="sensorValue", value=state, uiValue=str(state)+device.states['units'])
-                        if device.deviceTypeId =="ESPswitchType":
+                        elif device.deviceTypeId =="ESPswitchType":
+                            if str(device.states['key'])== str(key):
+                                if self.plugin.debug2:
+                                    self.plugin.logger.debug(f"Matching device {device.name} to received state {state} found.  Updating")
+                                device.updateStateOnServer(key="onOffState", value=state)
+                        elif device.deviceTypeId =="ESPbinarySensor":
                             if str(device.states['key'])== str(key):
                                 if self.plugin.debug2:
                                     self.plugin.logger.debug(f"Matching device {device.name} to received state {state} found.  Updating")
@@ -203,6 +208,29 @@ class ESPHome4Indigo:
                         asyncio.sleep(3)
                         newdevice.updateStatesOnServer(stateList)
                         x=x+1
+                    ## BinarySesnor
+                    elif type(entity) == aioesphomeapi.model.BinarySensorInfo:
+                        props_dict["SupportsSensorValue"] = False
+                        props_dict["SupportsOnState"] = True
+                        props_dict["device_number"] = x - 1
+                        newdevice = indigo.device.create(indigo.kProtocol.Plugin,
+                                                       deviceTypeId="ESPbinarySensor",
+                                                       address=mainESPCoredevice.address,
+                                                       #groupWithDevice=int(mainESPCoredevice.id), ## Don't group first device Leave core seperate
+                                                       name=mainESPCoredevice.name+"-"+entity.name,
+                                                       folder=mainESPCoredevice.folderId,
+                                                       description=mainESPCoredevice.name + "-BinarySensor",
+                                                       props=props_dict )
+                        stateList =  [
+                            {'key': 'deviceIsOnline', 'value': True},
+                            {'key': 'deviceStatus', 'value': "Connected"},
+                            {'key': 'key', 'value': entity.key},
+                            {'key': 'name', 'value': entity.name},
+                            {'key': 'unique_id', 'value': entity.unique_id}
+                        ]
+                        asyncio.sleep(3)
+                        newdevice.updateStatesOnServer(stateList)
+                        x=x+1
                     ## Switch
                     elif type(entity) == aioesphomeapi.model.SwitchInfo:
                         props_dict["SupportsStatusRequest"] = True
@@ -254,7 +282,30 @@ class ESPHome4Indigo:
                         asyncio.sleep(3)
                         newdevice.updateStatesOnServer(stateList)
                         x=x+1
-
+                    ## BinarySesnor
+                    elif type(entity) == aioesphomeapi.model.BinarySensorInfo:
+                        props_dict["SupportsSensorValue"] = False
+                        props_dict["SupportsOnState"] = True
+                        self.plugin.logger.info(f"{entity}")
+                        props_dict["device_number"] = x - 1
+                        newdevice = indigo.device.create(indigo.kProtocol.Plugin,
+                                                       deviceTypeId="ESPbinarySensor",
+                                                       address=mainESPCoredevice.address,
+                                                       groupWithDevice=int(first_device_id),
+                                                       name=mainESPCoredevice.name+"-"+entity.name,
+                                                       folder=mainESPCoredevice.folderId,
+                                                       description=mainESPCoredevice.name + "-Sensor",
+                                                       props=props_dict )
+                        stateList =  [
+                            {'key': 'deviceIsOnline', 'value': True},
+                            {'key': 'deviceStatus', 'value': "Connected"},
+                            {'key': 'key', 'value': entity.key},
+                            {'key': 'name', 'value': entity.name},
+                            {'key': 'unique_id', 'value': entity.unique_id}
+                        ]
+                        asyncio.sleep(3)
+                        newdevice.updateStatesOnServer(stateList)
+                        x=x+1
                     elif type(entity) == aioesphomeapi.model.SwitchInfo:
                         props_dict["SupportsStatusRequest"] = True
                         props_dict["SupportsOnState"] = True
