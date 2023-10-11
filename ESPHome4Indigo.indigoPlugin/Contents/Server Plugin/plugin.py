@@ -184,6 +184,29 @@ class ESPHome4Indigo:
 
             for entity in entities:
                 self.plugin.logger.debug(f"{entity} ")
+                device_exists = False
+                for check_dev in indigo.devices.iter("self"):
+                    if "unique_id" in check_dev.states:
+                        if str(check_dev.states["unique_id"]) == str(entity.unique_id):
+                            ## Device already exists.
+                            self.plugin.logger.info(f"{check_dev.name} seems to already exists based on unique_id, hence not recreated.")
+                            stateList = [
+                                {'key': 'deviceIsOnline', 'value': True},
+                                {'key': 'deviceStatus', 'value': "Connected"},
+                                {'key': 'key', 'value': entity.key},
+                                {'key': 'name', 'value': entity.name},
+                                {'key': 'unique_id', 'value': entity.unique_id}
+                            ]
+                            asyncio.sleep(3)
+                            check_dev.updateStatesOnServer(stateList)
+                            x =x +1
+                            first_device_id = check_dev.id
+                            device_exists = True
+                            break
+                if device_exists:
+                    device_exists = False
+                    continue  ## don't recreate the exisiting device
+
                 if x== 1:
                     if type(entity) == aioesphomeapi.model.SensorInfo:
                         props_dict["SupportsSensorValue"] = True
@@ -206,6 +229,7 @@ class ESPHome4Indigo:
                             {'key': 'unique_id', 'value': entity.unique_id}
                         ]
                         asyncio.sleep(3)
+                        first_device_id = newdevice.id
                         newdevice.updateStatesOnServer(stateList)
                         x=x+1
                     ## BinarySesnor
@@ -229,6 +253,7 @@ class ESPHome4Indigo:
                             {'key': 'unique_id', 'value': entity.unique_id}
                         ]
                         asyncio.sleep(3)
+                        first_device_id = newdevice.id
                         newdevice.updateStatesOnServer(stateList)
                         x=x+1
                     ## Switch
@@ -254,14 +279,14 @@ class ESPHome4Indigo:
                             {'key': 'unique_id', 'value': entity.unique_id}
                         ]
                         asyncio.sleep(3)
+                        first_device_id = newdevice.id
                         newdevice.updateStatesOnServer(stateList)
                         x=x+1
                 else:
-                    first_device_id = newdevice.id
                     if type(entity) == aioesphomeapi.model.SensorInfo:
                         props_dict["SupportsSensorValue"] = True
                         props_dict["SupportsOnState"] = True
-                        self.plugin.logger.info(f"{entity}")
+                        #self.plugin.logger.info(f"{entity}")
                         props_dict["device_number"] = x - 1
                         newdevice = indigo.device.create(indigo.kProtocol.Plugin,
                                                        deviceTypeId="ESPsensor",
@@ -286,7 +311,7 @@ class ESPHome4Indigo:
                     elif type(entity) == aioesphomeapi.model.BinarySensorInfo:
                         props_dict["SupportsSensorValue"] = False
                         props_dict["SupportsOnState"] = True
-                        self.plugin.logger.info(f"{entity}")
+                        #self.plugin.logger.info(f"{entity}")
                         props_dict["device_number"] = x - 1
                         newdevice = indigo.device.create(indigo.kProtocol.Plugin,
                                                        deviceTypeId="ESPbinarySensor",
@@ -354,7 +379,6 @@ class ESPHome4Indigo:
                 if 'linkedPrimaryIndigoDeviceId' in more_devs.pluginProps:
                     if str(self.deviceid) == str(more_devs.ownerProps['linkedPrimaryIndigoDeviceId']):
                         # self.logger.error(f"{device.id=} {more_devs.ownerProps['linkedPrimaryIndigoDeviceId']}")
-                        more_devs.updateStateImageOnServer(indigo.kStateImageSel.PowerOff)
                         more_devs.updateStateOnServer(key="deviceIsOnline", value=False)
                         more_devs.updateStateOnServer(key="deviceStatus", value="Offline")
                         more_devs.setErrorStateOnServer("Core Device Offline.")
@@ -368,7 +392,6 @@ class ESPHome4Indigo:
                 if 'linkedPrimaryIndigoDeviceId' in more_devs.pluginProps:
                     if str(self.deviceid) == str(more_devs.ownerProps['linkedPrimaryIndigoDeviceId']):
                         # self.logger.error(f"{device.id=} {more_devs.ownerProps['linkedPrimaryIndigoDeviceId']}")
-                        more_devs.updateStateImageOnServer(indigo.kStateImageSel.PowerOff)
                         more_devs.updateStateOnServer(key="deviceIsOnline", value=True)
                         more_devs.updateStateOnServer(key="deviceStatus", value="Online")
                         more_devs.setErrorStateOnServer(None)
@@ -483,9 +506,9 @@ class Plugin(indigo.PluginBase):
         self.logger.info("{0:<30} {1}".format("Plugin ID:", plugin_id))
         self.logger.info("{0:<30} {1}".format("Indigo version:", str(indigo.server.version)))
         self.logger.info("{0:<30} {1}".format("Python version:", sys.version.replace('\n', '')))
-        self.logger.info("{0:<30} {1}".format("Indigo Version:", str(indigo.server.version).replace('\n', '')))
         self.logger.info("{0:<30} {1}".format("Indigo License:", str(indigo.server.licenseStatus).replace('\n', '')))
         self.logger.info("{0:<30} {1}".format("Architecture:", platform.machine().replace('\n', '')))
+        self.logger.info("{0:=^130}".format(" Initializing New Plugin Session "))
         self.logger.info("")
         self.pluginprefDirectory = '{}/Preferences/Plugins/com.GlennNZ.indigoplugin.ESPHome4Indigo'.format(indigo.server.getInstallFolderPath())
 
@@ -583,19 +606,18 @@ class Plugin(indigo.PluginBase):
                     self.logger.debug(f"{self.ESPHomeThreads[i].deviceid} and device id {device.id}")
                     self.ESPHomeThreads[i].disconnect()
                     del self.ESPHomeThreads[i]
-                    self.logger.info(f"Removed ESPHome Manager for device: {device.name}")
-                    device.updateStateImageOnServer(indigo.kStateImageSel.PowerOff)
-                    device.updateStateOnServer(key="deviceStatus", value="ShutDown")
+                    self.logger.debug(f"Removed ESPHome Manager for device: {device.name}")
                     ## Shutdown linked devices
                     for more_devs in indigo.devices.iter("self"):
                         if 'linkedPrimaryIndigoDeviceId' in more_devs.pluginProps:
                             if str(device.id) == str(more_devs.ownerProps['linkedPrimaryIndigoDeviceId']):
                                 #self.logger.error(f"{device.id=} {more_devs.ownerProps['linkedPrimaryIndigoDeviceId']}")
-                                more_devs.updateStateImageOnServer(indigo.kStateImageSel.PowerOff)
                                 more_devs.updateStateOnServer(key="deviceIsOnline", value=False)
                                 more_devs.updateStateOnServer(key="deviceStatus", value="Offline")
                                 more_devs.setErrorStateOnServer("Core Device Offline.")
-
+                        else: ## core device
+                            device.updateStateImageOnServer(indigo.kStateImageSel.PowerOff)
+                            device.updateStateOnServer(key="deviceStatus", value="OffLine")
 
         except:
             self.logger.debug("Exception in DeviceStopCom \n", exc_info=True)
@@ -628,7 +650,15 @@ class Plugin(indigo.PluginBase):
     def Menu_showCore(self, *args, **kwargs):
         self.logger.debug("menu run")
         for thingies in self.ESPHomeThreads:
-            self.logger.debug(f"{thingies}")
+
+            self.logger.info(f"{thingies}")
+            self.logger.info(f"{thingies.devicename=}")
+            self.logger.info(f"{thingies.deviceid=}")
+            self.logger.info(f"{thingies.port=}")
+            self.logger.info(f"{thingies.host=}")
+            self.logger.info(f"{thingies.password=}")
+            self.logger.info(f"{thingies.loop=}")
+
 
     ########################################
     # Relay / Dimmer Action callback
@@ -860,7 +890,6 @@ class Plugin(indigo.PluginBase):
 
 
     def recreateDevices(self, valuesDict, typeId, devId):
-
         self.logger.debug(f"reCreateDevices: {valuesDict}")
         IPaddress = valuesDict["ESPHomeAddress"]
         password = valuesDict["password"]
@@ -868,69 +897,3 @@ class Plugin(indigo.PluginBase):
 
         return valuesDict
 
-    ########################################
-    # Button froms Device Config
-    def testConnection(self, valuesDict, typeId, devId):
-        try:
-            self.logger.debug(f"testconnection: {valuesDict}")
-            IPaddress = valuesDict["ESPHomeAddress"]
-            password = valuesDict["password"]
-            self.logger.info("Check Connection of ESPHome Device")
-            self.logger.debug(f"{valuesDict}\n  and {typeId}\n  and {devId}\n")
-            mainESPCoredevice = indigo.devices[devId]
-            cli = APIClient(
-                str(IPaddress),
-                "6053",
-                str(password),
-                client_info=f"Indigo Setup {mainESPCoredevice.name}")
-            try:
-                connect = asyncio.run(cli.connect(login=True))
-                return True
-            except:
-                self.logger.info("Failed to Connect.  Check Ip address")
-                return False
-
-
-            device_info = loop.run_until_complete(cli.device_info())
-            self.logger.error(f"{device_info}")
-            self.logger.debug(f"{device_info.esphome_version} {device_info.compilation_time} {device_info.mac_address} {device_info.name} {device_info.friendly_name} {device_info.model} {device_info.uses_password}")
-           # self.plugin.logger.error(f"{device_info}")
-
-            entities, services = loop.run_until_complete(cli.list_entities_services())
-            self.logger.error(f"{entities}")
-            for entity in entities:
-                self.logger.error(f"{entity=}")
-                self.logger.error(f"{entity.key=}")
-                self.logger.error(f"{type(entity)}")
-                if type(entity) == aioesphomeapi.model.SwitchInfo:
-                    self.logger.error(f"{entity=}")
-            self.logger.error(f"{services}")
-        except:
-            self.logger.exception("Exception in Test")
-    ######################
-    def createDevices(self, valuesDict, typeId, devId):
-        #
-        self.logger.info("Create ESPHome Linked Device Group if not already existing..")
-        self.logger.debug(f"{valuesDict}\n  and {typeId}\n  and {devId}\n")
-
-        mainESPCoredevice = indigo.devices[devId]
-        newstates = []
-        x = 1
-        props_dict = dict()
-        props_dict["member_of_device_group"] = True
-        props_dict["linkedPrimaryIndigoDevice"] = mainESPCoredevice.name
-
-        for device in list.entities:
-            props_dict["device_number"] = x-1
-            if x == 1:
-                newpump = indigo.device.create(indigo.kProtocol.Plugin,
-                                               deviceTypeId="ESPsensor",
-                                               address = mainESPCoredevice.address,
-                                               groupWithDevice=int(mainESPCoredevice.id),
-                                               name=mainESPCoredevice.name+"Sensor"+str(x),
-                                               folder=mainESPCoredevice.folderId,
-                                               description=mainESPCoredevice.name+"-Sensor",
-                                               props = props_dict
-                                               )
-        dev_id_list = indigo.device.getGroupList(mainESPCoredevice)
-        self.logger.debug(dev_id_list)

@@ -291,11 +291,6 @@
 				<TriggerLabel>UniqueID</TriggerLabel>
 				<ControlPageLabel>UniqueID</ControlPageLabel>
 			</State>
-			<State id="lastUpdated">
-				<ValueType>String</ValueType>
-				<TriggerLabel>lastUpdated</TriggerLabel>
-				<ControlPageLabel>lastUpdated</ControlPageLabel>
-			</State>
 	</States>
 	</Device>
 
