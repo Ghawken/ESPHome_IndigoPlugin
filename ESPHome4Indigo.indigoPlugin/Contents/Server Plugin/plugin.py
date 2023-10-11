@@ -9,6 +9,7 @@ try:
 except:
     pass
 
+import platform
 import asyncio
 import threading
 import subprocess
@@ -115,22 +116,23 @@ class ESPHome4Indigo:
         """Print the state changes of the device.."""
         try:
             if self.plugin.debug2:
-                self.plugin.logger.debug(state)
-
+                self.plugin.logger.debug(f" Received: {state}")
+                self.plugin.logger.debug(f"Main Linked Core device = {self.deviceid}")
             key = state.key
             state = state.state
-
             for device in indigo.devices.iter("self"):
-                if device.deviceTypeId =="ESPsensor":
-                    if str(device.states['key'])== str(key):
-                        if self.plugin.debug2:
-                            self.plugin.logger.debug(f"Matching device {device.name} to received state {state} found.  Updating")
-                        device.updateStateOnServer(key="sensorValue", value=state, uiValue=str(state)+device.states['units'])
-                if device.deviceTypeId =="ESPswitchType":
-                    if str(device.states['key'])== str(key):
-                        if self.plugin.debug2:
-                            self.plugin.logger.debug(f"Matching device {device.name} to received state {state} found.  Updating")
-                        device.updateStateOnServer(key="onOffState", value=state)
+                if "linkedPrimaryIndigoDeviceId" in device.pluginProps:  ## Check is linked device not core device
+                    if device.pluginProps["linkedPrimaryIndigoDeviceId"]== self.deviceid:  ## checked linked to this particularly Core group as Keys can be same
+                        if device.deviceTypeId =="ESPsensor":
+                            if str(device.states['key'])== str(key):
+                                if self.plugin.debug2:
+                                    self.plugin.logger.debug(f"Matching device {device.name} to received state {state} found.  Updating")
+                                device.updateStateOnServer(key="sensorValue", value=state, uiValue=str(state)+device.states['units'])
+                        if device.deviceTypeId =="ESPswitchType":
+                            if str(device.states['key'])== str(key):
+                                if self.plugin.debug2:
+                                    self.plugin.logger.debug(f"Matching device {device.name} to received state {state} found.  Updating")
+                                device.updateStateOnServer(key="onOffState", value=state)
 
         except:
             self.plugin.logger.exception(f"Exception in subscription callback")
@@ -196,6 +198,7 @@ class ESPHome4Indigo:
                             {'key': 'key', 'value': entity.key},
                             {'key': 'units', 'value': entity.unit_of_measurement},
                             {'key': 'name', 'value': entity.name},
+                            {'key': 'unique_id', 'value': entity.unique_id}
                         ]
                         asyncio.sleep(3)
                         newdevice.updateStatesOnServer(stateList)
@@ -220,6 +223,7 @@ class ESPHome4Indigo:
                             {'key': 'key', 'value': entity.key},
                             {'key': 'onOffState', 'value': entity.assumed_state},
                             {'key': 'name', 'value': entity.name},
+                            {'key': 'unique_id', 'value': entity.unique_id}
                         ]
                         asyncio.sleep(3)
                         newdevice.updateStatesOnServer(stateList)
@@ -245,6 +249,7 @@ class ESPHome4Indigo:
                             {'key': 'key', 'value': entity.key},
                             {'key': 'units', 'value': entity.unit_of_measurement},
                             {'key': 'name', 'value': entity.name},
+                            {'key': 'unique_id', 'value': entity.unique_id}
                         ]
                         asyncio.sleep(3)
                         newdevice.updateStatesOnServer(stateList)
@@ -269,6 +274,7 @@ class ESPHome4Indigo:
                             {'key': 'key', 'value': entity.key},
                             {'key': 'onOffState', 'value': entity.assumed_state},
                             {'key': 'name', 'value': entity.name},
+                            {'key': 'unique_id', 'value': entity.unique_id}
                         ]
                         asyncio.sleep(3)
                         newdevice.updateStatesOnServer(stateList)
@@ -424,9 +430,11 @@ class Plugin(indigo.PluginBase):
         self.logger.info("{0:<30} {1}".format("Plugin name:", plugin_display_name))
         self.logger.info("{0:<30} {1}".format("Plugin version:", plugin_version))
         self.logger.info("{0:<30} {1}".format("Plugin ID:", plugin_id))
-        self.logger.info("{0:<30} {1}".format("Indigo version:", indigo.server.version))
+        self.logger.info("{0:<30} {1}".format("Indigo version:", str(indigo.server.version)))
         self.logger.info("{0:<30} {1}".format("Python version:", sys.version.replace('\n', '')))
-        self.logger.info("{0:<30} {1}".format("Python Directory:", sys.prefix.replace('\n', '')))
+        self.logger.info("{0:<30} {1}".format("Indigo Version:", str(indigo.server.version).replace('\n', '')))
+        self.logger.info("{0:<30} {1}".format("Indigo License:", str(indigo.server.licenseStatus).replace('\n', '')))
+        self.logger.info("{0:<30} {1}".format("Architecture:", platform.machine().replace('\n', '')))
         self.logger.info("")
         self.pluginprefDirectory = '{}/Preferences/Plugins/com.GlennNZ.indigoplugin.ESPHome4Indigo'.format(indigo.server.getInstallFolderPath())
 

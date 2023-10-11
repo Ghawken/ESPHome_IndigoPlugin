@@ -58,7 +58,7 @@
 				<CallbackMethod>recreateDevices</CallbackMethod>
 			</Field>
 	      <Field id="setup" type="label" fontSize="large" fontColor="blue" alwaysUseInDialogHeightCalc="true" visibleBindingId="deviceSetup" dynamicReload="true" visibleBindingValue="false" >
-				<Label>Devices Require setup.  This will occur on first connection</Label>
+				<Label>Devices Require setup.  This will occur on first connection or after pressing Save.</Label>
 			</Field>
   </ConfigUI>
     <States>
@@ -255,6 +255,11 @@
 				<TriggerLabel>Name</TriggerLabel>
 				<ControlPageLabel>Name</ControlPageLabel>
 			</State>
+									<State id="unique_id">
+				<ValueType>String</ValueType>
+				<TriggerLabel>UniqueID</TriggerLabel>
+				<ControlPageLabel>UniqueID</ControlPageLabel>
+			</State>
 		</States>
 	</Device>
 
@@ -315,6 +320,11 @@
 				<ValueType>String</ValueType>
 				<TriggerLabel>Name</TriggerLabel>
 				<ControlPageLabel>Name</ControlPageLabel>
+			</State>
+						<State id="unique_id">
+				<ValueType>String</ValueType>
+				<TriggerLabel>UniqueID</TriggerLabel>
+				<ControlPageLabel>UniqueID</ControlPageLabel>
 			</State>
 		</States>
 	</Device>
