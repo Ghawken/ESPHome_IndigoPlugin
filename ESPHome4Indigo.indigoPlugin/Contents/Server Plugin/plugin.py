@@ -649,15 +649,15 @@ class Plugin(indigo.PluginBase):
 
     def Menu_showCore(self, *args, **kwargs):
         self.logger.debug("menu run")
-        for thingies in self.ESPHomeThreads:
+        for ESPCoreDevice in self.ESPHomeThreads:
 
-            self.logger.info(f"{thingies}")
-            self.logger.info(f"{thingies.devicename=}")
-            self.logger.info(f"{thingies.deviceid=}")
-            self.logger.info(f"{thingies.port=}")
-            self.logger.info(f"{thingies.host=}")
-            self.logger.info(f"{thingies.password=}")
-            self.logger.info(f"{thingies.loop=}")
+            self.logger.info(f"{ESPCoreDevice}")
+            self.logger.info(f"{ESPCoreDevice.devicename=}")
+            self.logger.info(f"{ESPCoreDevice.deviceid=}")
+            self.logger.info(f"{ESPCoreDevice.port=}")
+            self.logger.info(f"{ESPCoreDevice.host=}")
+            self.logger.info(f"{ESPCoreDevice.password=}")
+            self.logger.info(f"{ESPCoreDevice.loop=}")
 
 
     ########################################

@@ -28,38 +28,62 @@
     devices.
     -->
     <Device type="custom" id="espHomeMainDevice">
+
     <Name>ESP Home Core Device</Name>
   <ConfigUI>
     <Field id="hidden" type="textfield" hidden="True"></Field>
 	<Field id="deviceSetup" type="textfield" defaultValue="false" alwaysUseInDialogHeightCalc="true" hidden="True"></Field>
-      <Field id="ESPHomeAddress"
+	  <Field id="sep72" type="separator" alwaysUseInDialogHeightCalc="true"/>
+	  <Field id="ESPCoreTitle"
+           type="label"
+            alwaysUseInDialogHeightCalc="true"
+	  		fontSize="large"
+	  		fontColor="blue">
+        <Label>ESPHome Core Device Setup:</Label>
+    </Field>
+	  	  <Field id="sep72a" type="separator" alwaysUseInDialogHeightCalc="true" />
+	  <Field id="ESPHomeAddress"
            type="textfield"
            tooltip="Enter IP address to use" defaultValue="" alwaysUseInDialogHeightCalc="true">
-        <Label>ESPHome Device : IP address</Label>
+        <Label>IP address:</Label>
     </Field>
         <Field id="spacedddee11" type="label" fontSize="small" alignWithControl="true" alwaysUseInDialogHeightCalc="true">
-        <Label>eg. 192.168.1.6
-            or esphome2.local
+        <Label>eg. 192.168.1.6 or esphome2.local
         </Label>
     </Field>
 	        <Field id="password"
            type="textfield"
-           tooltip="Enter Password to use" defaultValue="" alwaysUseInDialogHeightCalc="true">
-        <Label>ESPHome Device : Password</Label>
+           tooltip="Enter Password to use, defaults to blank string" defaultValue="" alwaysUseInDialogHeightCalc="true">
+        <Label>Password:</Label>
     </Field>
 	  <Field id="port"
            type="textfield"
-           tooltip="Enter Port to use" defaultValue="6053" alwaysUseInDialogHeightCalc="true">
-        <Label>ESPHome Device : Port</Label>
+           tooltip="Enter Port to use, defaults to 6053" defaultValue="6053" alwaysUseInDialogHeightCalc="true">
+        <Label>Port:</Label>
     </Field>
+
+	  <Field id="spacedddesae11" type="label" fontSize="small" alignWithControl="true" alwaysUseInDialogHeightCalc="true">
+        <Label>IP address here is required, rest can be left blank or at default.  IP address needs to remain static for ongoing connection
+        </Label>
+    </Field>
+		      <Field id="sep73" alwaysUseInDialogHeightCalc="true" type="separator"/>
+
 	      <Field id="testConnection" type="button" alwaysUseInDialogHeightCalc="true" fontSize="large" fontColor="blue" >
 				<Label>Recreate Devices</Label>
 				<Title>Recreate Devices</Title>
 				<CallbackMethod>recreateDevices</CallbackMethod>
 			</Field>
+	  	  <Field id="spacedew2ddesae11" type="label" fontSize="small" alignWithControl="true" alwaysUseInDialogHeightCalc="true">
+        <Label>Pressing this button will enable on closing this dialog or connecting with device, creation of new Indigo devices
+These devices will represent compatible ESPHome devices/sensors on this main device.
+If this device is updated or changed, you can re-Press and new devices alone should be added
+        </Label>
+    </Field>
+	  	      <Field id="sep7aasdaea3" type="separator" visibleBindingId="deviceSetup"  alwaysUseInDialogHeightCalc="true" dynamicReload="true" visibleBindingValue="false"/>
 	      <Field id="setup" type="label" fontSize="large" fontColor="blue" alwaysUseInDialogHeightCalc="true" visibleBindingId="deviceSetup" dynamicReload="true" visibleBindingValue="false" >
-				<Label>Devices Require setup.  This will occur on first connection or after pressing Save.</Label>
+				<Label>Creation of Indigo Devices scheduled.  This will occur on first connection or after pressing Save.</Label>
 			</Field>
+	      <Field id="sep7aea3" type="separator" alwaysUseInDialogHeightCalc="true" />
   </ConfigUI>
     <States>
       <State id="deviceIsOnline">
@@ -231,9 +255,6 @@
 
 	<Device type="relay" id="ESPswitchType" allowUserCreation="false">
 		<Name>ESPHome Switch</Name>
-		<ConfigUI>
-			<Field id="SupportsStatusRequest" type="checkbox" hidden="true" defaultValue="false"/>
-		</ConfigUI>
 		<States>
 			<State id="deviceStatus">
 				<ValueType>String</ValueType>
@@ -296,11 +317,6 @@
 
 	<Device type="sensor" id="ESPsensor" allowUserCreation="false">>
 		<Name>ESPHome Sensor</Name>
-		<ConfigUI>
-			<Field id="SupportsStatusRequest" type="checkbox" defaultValue="false" hidden="true" />
-			<Field id="SupportsSensorValue"   type="checkbox" defaultValue="true"  hidden="true" />
-			<Field id="SupportsOnState"       type="checkbox" defaultValue="false" hidden="true" />
-		</ConfigUI>
 		<States>
 			<State id="deviceIsOnline">
         <ValueType>Boolean</ValueType>
@@ -337,19 +353,6 @@
 
 	<Device type="custom" id="ESPgeneric" allowUserCreation="false">
 		<Name>ESPHome Generic Device</Name>
-		<ConfigUI>
-			<Field id="SupportsStatusRequest" type="checkbox" defaultValue="false" hidden="true" />
-			<Field id="entity_type" type="menu">
-                <Label>Entity Type:</Label>
-                <List class="self" method="get_entity_type_list" filter="" dynamicReload="true"/>
-                <CallbackMethod>menuChanged</CallbackMethod>
-            </Field>
-			<Field id="address" type="menu">
-                <Label>Entity:</Label>
-                <List class="self" method="get_entity_list" filter="generic" dynamicReload="true"/>
-                <CallbackMethod>menuChanged</CallbackMethod>
-            </Field>
-		</ConfigUI>
 		<States>
 			<State id="lastUpdated">
 				<ValueType>String</ValueType>
