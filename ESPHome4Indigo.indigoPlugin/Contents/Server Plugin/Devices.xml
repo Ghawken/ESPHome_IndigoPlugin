@@ -61,7 +61,11 @@
            tooltip="Enter Port to use, defaults to 6053" defaultValue="6053" alwaysUseInDialogHeightCalc="true">
         <Label>Port:</Label>
     </Field>
-
+	        <Field id="encryptionkey"
+           type="textfield"
+           tooltip="Enter Encryption key to use, defaults to blank string" defaultValue="" alwaysUseInDialogHeightCalc="true">
+        <Label>Encryption key:</Label>
+    </Field>
 	  <Field id="spacedddesae11" type="label" fontSize="small" alignWithControl="true" alwaysUseInDialogHeightCalc="true">
         <Label>IP address here is required, rest can be left blank or at default.  IP address needs to remain static for ongoing connection
         </Label>

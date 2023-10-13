@@ -84,7 +84,7 @@ class IndigoLogHandler(logging.Handler):
             indigo.server.log(f"Error in Logging: {ex}",type=self.displayName, isError=is_error, level=levelno)
 
 class ESPHome4Indigo:
-    def __init__(self, plugin, loop, deviceid, host, port, password, devicename):
+    def __init__(self, plugin, loop, deviceid, host, port, password, encryptionkey, devicename):
         try:
             self.plugin = plugin
             self.plugin.logger.debug("Within init of ESP Home4Indigo")
@@ -92,16 +92,18 @@ class ESPHome4Indigo:
             self.host = host
             self.port = port
             self.password = password
+            self.encryptionkey = encryptionkey
             self.loop = loop
             self.devicename = devicename
             self.cli = APIClient(
                 self.host,
                 self.port,
                 self.password,
-                client_info=f"Indigo {devicename}" )
+                client_info=f"Indigo {devicename}",
+                noise_psk=encryptionkey or None)
             self._killConnection = False
             #.create_task(self.loop_esphome(cli=self.cli, deviceid=self.deviceid) )
-            self._task = self.loop.create_task( self.loop_esphome(cli=self.cli, deviceid=self.deviceid) )
+            self._task = self.loop.create_task( self.loop_esphome(deviceid=self.deviceid) )
             self.plugin.logger.debug("End of init ESP Home4Indigo")
         except:
             self.plugin.logger.exception("Exception")
@@ -229,6 +231,7 @@ class ESPHome4Indigo:
                             {'key': 'unique_id', 'value': entity.unique_id}
                         ]
                         asyncio.sleep(3)
+                        self.plugin.logger.info(f"Created New Indigo Sensor Device for ESPHome device: {entity.name}")
                         first_device_id = newdevice.id
                         newdevice.updateStatesOnServer(stateList)
                         x=x+1
@@ -254,6 +257,7 @@ class ESPHome4Indigo:
                         ]
                         asyncio.sleep(3)
                         first_device_id = newdevice.id
+                        self.plugin.logger.info(f"Created New Indigo Sensor Device for ESPHome device: {entity.name}")
                         newdevice.updateStatesOnServer(stateList)
                         x=x+1
                     ## Switch
@@ -280,6 +284,7 @@ class ESPHome4Indigo:
                         ]
                         asyncio.sleep(3)
                         first_device_id = newdevice.id
+                        self.plugin.logger.info(f"Created New Indigo Switch Device for ESPHome device: {entity.name}")
                         newdevice.updateStatesOnServer(stateList)
                         x=x+1
                 else:
@@ -305,6 +310,7 @@ class ESPHome4Indigo:
                             {'key': 'unique_id', 'value': entity.unique_id}
                         ]
                         asyncio.sleep(3)
+                        self.plugin.logger.info(f"Created New Indigo Sensor Device for ESPHome device: {entity.name}")
                         newdevice.updateStatesOnServer(stateList)
                         x=x+1
                     ## BinarySesnor
@@ -329,6 +335,7 @@ class ESPHome4Indigo:
                             {'key': 'unique_id', 'value': entity.unique_id}
                         ]
                         asyncio.sleep(3)
+                        self.plugin.logger.info(f"Created New Indigo Sensor Device for ESPHome device: {entity.name}")
                         newdevice.updateStatesOnServer(stateList)
                         x=x+1
                     elif type(entity) == aioesphomeapi.model.SwitchInfo:
@@ -353,6 +360,7 @@ class ESPHome4Indigo:
                             {'key': 'unique_id', 'value': entity.unique_id}
                         ]
                         asyncio.sleep(3)
+                        self.plugin.logger.info(f"Created New Indigo Switch Device for ESPHome device: {entity.name}")
                         newdevice.updateStatesOnServer(stateList)
                         x=x+1
 
@@ -398,7 +406,7 @@ class ESPHome4Indigo:
         except:
             self.plugin.logger.exception("Exception")
 
-    async def loop_esphome(self, cli, deviceid):
+    async def loop_esphome(self, deviceid):
 
         mainESPCoredevice = indigo.devices[deviceid]
         self.plugin.logger.debug(f"Loop ESPHOME Started for {mainESPCoredevice.name}.")
@@ -411,12 +419,12 @@ class ESPHome4Indigo:
                     timeretry = 60
 
                 self.plugin.logger.debug("Running connect")
-                await cli.connect(login=True)
+                await self.cli.connect(login=True)
 
                 api_version = self.cli.api_version
-                device_info = await cli.device_info()
+                device_info = await self.cli.device_info()
 
-                entities,services = await cli.list_entities_services()
+                entities,services = await self.cli.list_entities_services()
                 self.plugin.logger.debug(f"\nEntities\n{entities}")
                 self.plugin.logger.debug(f"\nServices\n{services}")
 
@@ -430,19 +438,23 @@ class ESPHome4Indigo:
                 else:
                     await self.updateDeviceInfo(mainESPCoredevice, device_info, api_version)
 
-                self.plugin.logger.info(f"Now subscribing to State Changes for {mainESPCoredevice.name}")
+                self.plugin.logger.info(f"Connected to, and subscribing for State Changes for {mainESPCoredevice.name}")
                 await self.cli.subscribe_states(self.change_callback)
 
                 while True:
-                    cli._check_authenticated()  ## Causes exception when not connected.
+                    self.cli._check_authenticated()  ## Causes exception when not connected.
                     await asyncio.sleep(5)
 
             except aioesphomeapi.core.TimeoutAPIError:
                 self.plugin.logger.debug("Timeout Exception.  Retry")
             except aioesphomeapi.core.SocketAPIError:
                 self.plugin.logger.debug(f"Timeout Exception. {self.devicename} Retry")
+            except aioesphomeapi.core.RequiresEncryptionAPIError:
+                self.plugin.logger.info("Failed Connection: This Devices requires encryption for connection.  Please enter and try again.")
+            except aioesphomeapi.core.InvalidAuthAPIError:
+                self.plugin.logger.info("Failed Connection: This Devices requires Authenication for connection.  Please enter and try again.")
             except aioesphomeapi.core.APIConnectionError:
-                self.plugin.logger.debug(f"Timeout Exception. {self.devicename}  Retry")
+                self.plugin.logger.debug(f"APIConnection Error Exception. {self.devicename}  Retry")
             except Exception:
                 self.plugin.logger.debug("Exception in Loop_ATV:  Should restart.", exc_info=True)
 
@@ -626,6 +638,10 @@ class Plugin(indigo.PluginBase):
         try:
             self.logger.debug(f"{device.name}: Starting {device.deviceTypeId} Device {device.id} ")
             ipaddress = device.pluginProps.get("ESPHomeAddress","")
+            password = device.pluginProps.get("password","")
+            encryptionkey = device.pluginProps.get("encryptionkey", "")
+            port = device.pluginProps.get("port", "")
+
             if self.debug1:
                 self.logger.debug(f"{device}")
             device.stateListOrDisplayStateIdChanged()
@@ -633,7 +649,7 @@ class Plugin(indigo.PluginBase):
                 if device.enabled and ipaddress !="":
                     device.updateStateOnServer(key="deviceStatus", value="Starting Up")
                     device.updateStateImageOnServer(indigo.kStateImageSel.PowerOff)
-                    self.ESPHomeThreads.append(ESPHome4Indigo(self, self._event_loop, device.id, ipaddress, "6053", "", device.name ) )
+                    self.ESPHomeThreads.append(ESPHome4Indigo(self, self._event_loop, device.id, ipaddress, port, password, encryptionkey, device.name ) )
                 # __init__(self, plugin, loop, deviceid, host, port, password, devicename):
                 else:
                     device.setErrorStateOnServer(None)
@@ -657,6 +673,7 @@ class Plugin(indigo.PluginBase):
             self.logger.info(f"{ESPCoreDevice.port=}")
             self.logger.info(f"{ESPCoreDevice.host=}")
             self.logger.info(f"{ESPCoreDevice.password=}")
+            self.logger.info(f"{ESPCoreDevice.encryptionkey=}")
             self.logger.info(f"{ESPCoreDevice.loop=}")
 
 
@@ -893,6 +910,7 @@ class Plugin(indigo.PluginBase):
         self.logger.debug(f"reCreateDevices: {valuesDict}")
         IPaddress = valuesDict["ESPHomeAddress"]
         password = valuesDict["password"]
+     #   encryptionkey = valuesDict["encryptionkey"]
         valuesDict["deviceSetup"] = False
 
         return valuesDict
