@@ -122,6 +122,7 @@ class ESPHome4Indigo:
                 self.plugin.logger.debug(f"Main Linked Core device = {self.deviceid}")
             key = state.key
             state = state.state
+            state = f"{state:5f}" if isinstance(state, float) else state
             for device in indigo.devices.iter("self"):
                 if "linkedPrimaryIndigoDeviceId" in device.pluginProps:  ## Check is linked device not core device
                     if device.pluginProps["linkedPrimaryIndigoDeviceId"]== self.deviceid:  ## checked linked to this particularly Core group as Keys can be same
@@ -129,7 +130,7 @@ class ESPHome4Indigo:
                             if str(device.states['key'])== str(key):
                                 if self.plugin.debug2:
                                     self.plugin.logger.debug(f"Matching device {device.name} to received state {state} found.  Updating")
-                                device.updateStateOnServer(key="sensorValue", value=state, uiValue=str(state)+device.states['units'])
+                                device.updateStateOnServer(key="sensorValue", value=state, uiValue=str(state)+" "+device.states['units'])
                         elif device.deviceTypeId =="ESPswitchType":
                             if str(device.states['key'])== str(key):
                                 if self.plugin.debug2:
