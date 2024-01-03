@@ -317,6 +317,7 @@ If this device is updated or changed, you can re-Press and new devices alone sho
 				<ControlPageLabel>UniqueID</ControlPageLabel>
 			</State>
 	</States>
+		    <UiDisplayStateId>deviceStatus</UiDisplayStateId>
 	</Device>
 
 	<Device type="sensor" id="ESPsensor" allowUserCreation="false">>
@@ -353,6 +354,54 @@ If this device is updated or changed, you can re-Press and new devices alone sho
 				<ControlPageLabel>UniqueID</ControlPageLabel>
 			</State>
 		</States>
+		    <UiDisplayStateId>deviceStatus</UiDisplayStateId>
+	</Device>
+
+<Device type="custom" id="ESPText" allowUserCreation="false">
+		<Name>ESPHome Text Info Device</Name>
+		<States>
+						<State id="deviceIsOnline">
+        <ValueType>Boolean</ValueType>
+        <TriggerLabel>Device online?</TriggerLabel>
+        <ControlPageLabel>Device online?</ControlPageLabel>
+      </State>
+			<State id="lastUpdated">
+				<ValueType>String</ValueType>
+				<TriggerLabel>lastUpdated</TriggerLabel>
+				<ControlPageLabel>lastUpdated</ControlPageLabel>
+			</State>
+			<State id="actual_state">
+				<ValueType>String</ValueType>
+				<TriggerLabel>Actual State</TriggerLabel>
+				<ControlPageLabel>Actual State</ControlPageLabel>
+			</State>
+			<State id="deviceStatus">
+				<ValueType>String</ValueType>
+				<TriggerLabel>deviceStatus</TriggerLabel>
+				<ControlPageLabel>deviceStatus</ControlPageLabel>
+			</State>
+			<State id="units">
+				<ValueType>String</ValueType>
+				<TriggerLabel>Units of Measurement</TriggerLabel>
+				<ControlPageLabel>Units</ControlPageLabel>
+			</State>
+			<State id="key">
+				<ValueType>String</ValueType>
+				<TriggerLabel>Key</TriggerLabel>
+				<ControlPageLabel>Key</ControlPageLabel>
+			</State>
+						<State id="name">
+				<ValueType>String</ValueType>
+				<TriggerLabel>Name</TriggerLabel>
+				<ControlPageLabel>Name</ControlPageLabel>
+			</State>
+						<State id="unique_id">
+				<ValueType>String</ValueType>
+				<TriggerLabel>UniqueID</TriggerLabel>
+				<ControlPageLabel>UniqueID</ControlPageLabel>
+			</State>
+		</States>
+	    <UiDisplayStateId>actual_state</UiDisplayStateId>
 	</Device>
 
 	<Device type="custom" id="ESPgeneric" allowUserCreation="false">
