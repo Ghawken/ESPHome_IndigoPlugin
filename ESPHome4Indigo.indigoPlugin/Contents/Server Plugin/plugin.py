@@ -50,6 +50,7 @@ try:
 except:
     pass
 
+
 # Note the "indigo" module is automatically imported and made available inside
 # our global name space by the host process.
 ###############################################################################
@@ -547,6 +548,7 @@ class Plugin(indigo.PluginBase):
         super().__init__(plugin_id, plugin_display_name, plugin_version, plugin_prefs)
         self.debug = True
         global installation_output
+        self.packages_installed = False
         # Thread for each ESP connection device, for asyncio
         self.ESPHomeThreads = []
 
@@ -576,6 +578,7 @@ class Plugin(indigo.PluginBase):
         logging.getLogger("zeroconf").addHandler(self.plugin_file_handler)
 
         if installation_output !="":
+            self.packages_installed = True
             self.logger.warning(f"Dependencies Found for Plugin.  One time installation:\n{installation_output}")
             self.logger.warning(f"Installed Correctly, now Starting plugin.")
 
@@ -595,6 +598,13 @@ class Plugin(indigo.PluginBase):
         self.logger.info("{0:<30} {1}".format("Architecture:", platform.machine().replace('\n', '')))
         self.logger.info("{0:=^130}".format(" Initializing New Plugin Session "))
         self.logger.info("")
+
+        if self.packages_installed:
+            self.logger.info("Libaries Updated.  Please run xattr command as below (copy & paste to terminal)")
+            self.logger.info("")
+            self.logger.info("{}".format("sudo xattr -rd com.apple.quarantine '" + indigo.server.getInstallFolderPath() + "/" + "Plugins'"))
+            self.logger.info(u"{0:=^130}".format(" End of Setup "))
+
         self.pluginprefDirectory = '{}/Preferences/Plugins/com.GlennNZ.indigoplugin.ESPHome4Indigo'.format(indigo.server.getInstallFolderPath())
 
         self.debug1 = self.pluginPrefs.get('debug1', False)
