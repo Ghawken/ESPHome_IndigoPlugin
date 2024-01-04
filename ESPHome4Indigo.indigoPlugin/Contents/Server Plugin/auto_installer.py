@@ -1,10 +1,11 @@
 # python3
 # auto_installer.py
-# v.0.2
+# v.0.3
 
 import subprocess
 from pathlib import Path
 import sys
+
 try:
     import indigo
 except:
@@ -13,7 +14,12 @@ except:
 def install_package_and_retry_import():
     current_directory = Path.cwd()  # Current directory
     parent_directory = current_directory.parent  # Parent directory
-    pip_executable = "/Library/Frameworks/Python.framework/Versions/3.11/bin/pip3.11"
+    pip_name = f"pip{sys.version_info.major}.{sys.version_info.minor}"
+    if pip_name == "pip3.10":
+        pip_path = "/Library/Frameworks/Python.framework/Versions/3.10/bin/pip3.10"
+    elif pip_name == "pip3.11":
+        pip_path = "/Library/Frameworks/Python.framework/Versions/3.11/bin/pip3.11"
+    pip_executable = pip_path #"/Library/Frameworks/Python.framework/Versions/3.11/bin/pip3.11"
     requirements_file = current_directory / "requirements.txt"
     install_dir = parent_directory / "Packages"
     installation_output = f"Installing dependencies to '{install_dir}' based on '{requirements_file}'\n"
@@ -38,6 +44,5 @@ def install_package_and_retry_import():
         sys.exit(1)
     except Exception as e:
         error_message = f"An unexpected error occurred: {e}"
-        indigo.server.log(f"{installation_output}")
         indigo.server.log(f"{error_message}")
         sys.exit(1)
