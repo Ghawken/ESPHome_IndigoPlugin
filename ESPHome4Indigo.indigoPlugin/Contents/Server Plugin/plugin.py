@@ -3,11 +3,14 @@
 ####################
 # GlennNZ
 # https://www.indigodomo.com
-import_errors = []
+
 try:
     import indigo
 except:
     pass
+import logging
+installation_output= ""
+from auto_installer import install_package_and_retry_import
 
 import platform
 import asyncio
@@ -24,6 +27,11 @@ import asyncio
 
 try:
     import aioesphomeapi
+except ImportError:
+    installation_output = install_package_and_retry_import()
+
+try:
+    import aioesphomeapi
     from aioesphomeapi import (
         APIClient,
         APIConnectionError,
@@ -34,7 +42,7 @@ try:
         ResolveAPIError,
     )
 except ImportError:
-    import_errors.append("aioesphomeapi")
+    pass
 
 try:
     import pydevd_pycharm
@@ -538,7 +546,7 @@ class Plugin(indigo.PluginBase):
     def __init__(self, plugin_id, plugin_display_name, plugin_version, plugin_prefs):
         super().__init__(plugin_id, plugin_display_name, plugin_version, plugin_prefs)
         self.debug = True
-
+        global installation_output
         # Thread for each ESP connection device, for asyncio
         self.ESPHomeThreads = []
 
@@ -566,6 +574,10 @@ class Plugin(indigo.PluginBase):
         self.plugin_file_handler.setLevel(self.fileloglevel)
 
         logging.getLogger("zeroconf").addHandler(self.plugin_file_handler)
+
+        if installation_output !="":
+            self.logger.warning(f"Dependencies Found for Plugin.  One time installation:\n{installation_output}")
+            self.logger.warning(f"Installed Correctly, now Starting plugin.")
 
         ################################################################################
         # Finish Logging changes
@@ -636,12 +648,6 @@ class Plugin(indigo.PluginBase):
     ########################################
     def startup(self):
         self.logger.debug("startup called")
-        if len(import_errors):
-            if "aioesphomeapi" in import_errors:
-                msg = f"Required Python libraries missing.  Run the following command(s) in a Terminal window to install them, then reload the plugin.\n\n"
-                msg += f'pip3 install -r "{self.pluginFolderPath}/Contents/Server Plugin/aioesphomeapi/requirements.txt" -t "{self.pluginFolderPath}/Contents/Packages/"\n'
-            self.logger.error(msg)
-            return "Plugin startup cancelled due to missing Python libraries."
 
         self._event_loop = asyncio.new_event_loop()
         asyncio.set_event_loop(self._event_loop)
