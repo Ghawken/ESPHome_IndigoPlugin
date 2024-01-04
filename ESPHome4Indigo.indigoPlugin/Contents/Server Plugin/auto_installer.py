@@ -14,12 +14,8 @@ except:
 def install_package_and_retry_import():
     current_directory = Path.cwd()  # Current directory
     parent_directory = current_directory.parent  # Parent directory
-    pip_name = f"pip{sys.version_info.major}.{sys.version_info.minor}"
-    if pip_name == "pip3.10":
-        pip_path = "/Library/Frameworks/Python.framework/Versions/3.10/bin/pip3.10"
-    elif pip_name == "pip3.11":
-        pip_path = "/Library/Frameworks/Python.framework/Versions/3.11/bin/pip3.11"
-    pip_executable = pip_path #"/Library/Frameworks/Python.framework/Versions/3.11/bin/pip3.11"
+    pip_path = f"/Library/Frameworks/Python.framework/Versions/{sys.version_info.major}.{sys.version_info.minor}/bin/pip{sys.version_info.major}.{sys.version_info.minor}"
+    pip_executable = pip_path #e.g. "/Library/Frameworks/Python.framework/Versions/3.11/bin/pip3.11"
     requirements_file = current_directory / "requirements.txt"
     install_dir = parent_directory / "Packages"
     installation_output = f"Installing dependencies to '{install_dir}' based on '{requirements_file}'\n"
