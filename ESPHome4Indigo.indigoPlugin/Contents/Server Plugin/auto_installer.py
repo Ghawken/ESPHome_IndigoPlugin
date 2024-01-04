@@ -1,4 +1,4 @@
- python3
+# python3
 # auto_installer.py
 
 import subprocess
