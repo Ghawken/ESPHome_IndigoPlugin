@@ -1,10 +1,14 @@
 # python3
 # auto_installer.py
+# v.0.2
 
 import subprocess
 from pathlib import Path
 import sys
-import indigo
+try:
+    import indigo
+except:
+    pass
 
 def install_package_and_retry_import():
     current_directory = Path.cwd()  # Current directory
@@ -25,15 +29,15 @@ def install_package_and_retry_import():
         # Check if installation was successful
         if result.returncode != 0:
             indigo.server.log("An error occurred while installing packages.")
-            indigo.server.log(installation_output)
+            indigo.server.log(f"{installation_output}")
             sys.exit(1)
         return installation_output
     except FileNotFoundError as e:
         error_message = f"File not found error: {e}"
-        indigo.server.log(error_message)
+        indigo.server.log(f"{error_message}")
         sys.exit(1)
     except Exception as e:
         error_message = f"An unexpected error occurred: {e}"
-        indigo.server.log(installation_output)
-        indigo.server.log(error_message)
+        indigo.server.log(f"{installation_output}")
+        indigo.server.log(f"{error_message}")
         sys.exit(1)
