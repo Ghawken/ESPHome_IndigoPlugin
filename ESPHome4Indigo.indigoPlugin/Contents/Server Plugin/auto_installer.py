@@ -1,4 +1,4 @@
-# python3
+ python3
 # auto_installer.py
 
 import subprocess
@@ -19,13 +19,12 @@ def install_package_and_retry_import():
     try:
         result = subprocess.run([
             pip_executable, 'install', '-r', str(requirements_file), '-t', str(install_dir), '--disable-pip-version-check'
-        ], stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True)
+        ], stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
         # Save the output to a variable for later use
-        installation_output += result.stdout
+        installation_output += result.stdout.decode('utf-8', errors='replace')
         # Check if installation was successful
         if result.returncode != 0:
             indigo.server.log("An error occurred while installing packages.")
-            indigo.server.log(f"Result returncode: {result.returncode}")
             indigo.server.log(installation_output)
             sys.exit(1)
         return installation_output
@@ -35,5 +34,6 @@ def install_package_and_retry_import():
         sys.exit(1)
     except Exception as e:
         error_message = f"An unexpected error occurred: {e}"
+        indigo.server.log(installation_output)
         indigo.server.log(error_message)
         sys.exit(1)
