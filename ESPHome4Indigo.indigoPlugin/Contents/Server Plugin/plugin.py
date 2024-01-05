@@ -29,7 +29,7 @@ import asyncio
 #     import aioesphomeapi
 # except ImportError:
 #     installation_output = install_package_and_retry_import()
-
+# Test version
 
 import aioesphomeapi
 from aioesphomeapi import (
