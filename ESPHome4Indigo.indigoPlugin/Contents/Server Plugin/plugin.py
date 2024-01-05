@@ -25,24 +25,23 @@ from os import path
 
 import asyncio
 
-try:
-    import aioesphomeapi
-except ImportError:
-    installation_output = install_package_and_retry_import()
+# try:
+#     import aioesphomeapi
+# except ImportError:
+#     installation_output = install_package_and_retry_import()
 
-try:
-    import aioesphomeapi
-    from aioesphomeapi import (
-        APIClient,
-        APIConnectionError,
-        DeviceInfo,
-        InvalidAuthAPIError,
-        InvalidEncryptionKeyAPIError,
-        RequiresEncryptionAPIError,
-        ResolveAPIError,
-    )
-except ImportError:
-    pass
+
+import aioesphomeapi
+from aioesphomeapi import (
+    APIClient,
+    APIConnectionError,
+    DeviceInfo,
+    InvalidAuthAPIError,
+    InvalidEncryptionKeyAPIError,
+    RequiresEncryptionAPIError,
+    ResolveAPIError,
+)
+
 
 try:
     import pydevd_pycharm
