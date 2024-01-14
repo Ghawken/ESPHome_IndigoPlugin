@@ -8,10 +8,6 @@ try:
     import indigo
 except:
     pass
-import logging
-installation_output= ""
-from auto_installer import install_package_and_retry_import
-
 import platform
 import asyncio
 import threading
@@ -22,14 +18,7 @@ import time
 import logging
 import traceback
 from os import path
-
 import asyncio
-
-# try:
-#     import aioesphomeapi
-# except ImportError:
-#     installation_output = install_package_and_retry_import()
-# Test version
 
 import aioesphomeapi
 from aioesphomeapi import (
@@ -41,7 +30,6 @@ from aioesphomeapi import (
     RequiresEncryptionAPIError,
     ResolveAPIError,
 )
-
 
 try:
     import pydevd_pycharm
@@ -511,7 +499,7 @@ class ESPHome4Indigo:
                 await self.cli.subscribe_states(self.change_callback)
 
                 while True:
-                    self.cli._check_authenticated()  ## Causes exception when not connected.
+                    self.cli._get_connection()  ## Causes exception when not connected.
                     await asyncio.sleep(5)
 
             except aioesphomeapi.core.TimeoutAPIError:
@@ -546,8 +534,6 @@ class Plugin(indigo.PluginBase):
     def __init__(self, plugin_id, plugin_display_name, plugin_version, plugin_prefs):
         super().__init__(plugin_id, plugin_display_name, plugin_version, plugin_prefs)
         self.debug = True
-        global installation_output
-        self.packages_installed = False
         # Thread for each ESP connection device, for asyncio
         self.ESPHomeThreads = []
 
@@ -574,12 +560,7 @@ class Plugin(indigo.PluginBase):
         self.plugin_file_handler.setFormatter(pfmt)
         self.plugin_file_handler.setLevel(self.fileloglevel)
 
-        logging.getLogger("zeroconf").addHandler(self.plugin_file_handler)
-
-        if installation_output !="":
-            self.packages_installed = True
-            self.logger.warning(f"Dependencies Found for Plugin.  One time installation:\n{installation_output}")
-            self.logger.warning(f"Installed Correctly, now Starting plugin.")
+        logging.getLogger("aioesphomeapi").addHandler(self.plugin_file_handler)
 
         ################################################################################
         # Finish Logging changes
@@ -598,11 +579,11 @@ class Plugin(indigo.PluginBase):
         self.logger.info("{0:=^130}".format(" Initializing New Plugin Session "))
         self.logger.info("")
 
-        if self.packages_installed:
-            self.logger.info("Libaries Updated.  Please run xattr command as below (copy & paste to terminal)")
-            self.logger.info("")
-            self.logger.info("{}".format("sudo xattr -rd com.apple.quarantine '" + indigo.server.getInstallFolderPath() + "/" + "Plugins'"))
-            self.logger.info(u"{0:=^130}".format(" End of Setup "))
+        #if self.debug1:
+        #    self.logger.info("Libaries Updated.  Please run xattr command as below (copy & paste to terminal)")
+        #    self.logger.info("")
+        #    self.logger.info("{}".format("sudo xattr -rd com.apple.quarantine '" + indigo.server.getInstallFolderPath() + "/" + "Plugins'"))
+        #    self.logger.info(u"{0:=^130}".format(" End of Setup "))
 
         self.pluginprefDirectory = '{}/Preferences/Plugins/com.GlennNZ.indigoplugin.ESPHome4Indigo'.format(indigo.server.getInstallFolderPath())
 
@@ -617,10 +598,10 @@ class Plugin(indigo.PluginBase):
         self.debug9 = self.pluginPrefs.get('debug9', False)
         self.debug10 = self.pluginPrefs.get('debug10', False)
         self._event_loop = None
-        if self.debug3:
-            logging.getLogger("Plugin.HomeKit_pyHap").setLevel(logging.DEBUG)
+        if self.debug10:
+            logging.getLogger("aioesphomeapi").setLevel(logging.DEBUG)
         else:
-            logging.getLogger("Plugin.HomeKit_pyHap").setLevel(logging.INFO)
+            logging.getLogger("aioesphomeapi").setLevel(logging.INFO)
 
     def closedPrefsConfigUi(self, valuesDict, userCancelled):
         self.logger.debug(u"closedPrefsConfigUi() method called.")
@@ -728,15 +709,25 @@ class Plugin(indigo.PluginBase):
                 self.logger.debug(f"{device}")
             device.stateListOrDisplayStateIdChanged()
             if device.deviceTypeId == 'espHomeMainDevice':
-                if device.enabled and ipaddress !="":
-                    device.updateStateOnServer(key="deviceStatus", value="Starting Up")
-                    device.updateStateImageOnServer(indigo.kStateImageSel.PowerOff)
-                    self.ESPHomeThreads.append(ESPHome4Indigo(self, self._event_loop, device.id, ipaddress, port, password, encryptionkey, device.name ) )
-                # __init__(self, plugin, loop, deviceid, host, port, password, devicename):
+                if device.enabled:
+                    if ipaddress !="":
+                        device.updateStateOnServer(key="deviceStatus", value="Starting Up")
+                        device.updateStateImageOnServer(indigo.kStateImageSel.PowerOff)
+                        self.ESPHomeThreads.append(ESPHome4Indigo(self, self._event_loop, device.id, ipaddress, port, password, encryptionkey, device.name ) )
+                    # __init__(self, plugin, loop, deviceid, host, port, password, devicename):
                 else:
                     device.setErrorStateOnServer(None)
                     device.updateStateImageOnServer(indigo.kStateImageSel.PowerOff)
-            device.setErrorStateOnServer(None)
+                    for more_devs in indigo.devices.iter("self"):
+                        if 'linkedPrimaryIndigoDeviceId' in more_devs.pluginProps:
+                            if str(device.id) == str(more_devs.ownerProps['linkedPrimaryIndigoDeviceId']):
+                                self.logger.error(f"{device.id=} {more_devs.ownerProps['linkedPrimaryIndigoDeviceId']}")
+                                more_devs.updateStateOnServer(key="deviceIsOnline", value=False)
+                                more_devs.updateStateOnServer(key="deviceStatus", value="Offline")
+                                more_devs.setErrorStateOnServer("Core Device Offline.")
+                                more_devs.updateStateImageOnServer(indigo.kStateImageSel.PowerOff)
+
+        #    device.setErrorStateOnServer(None)
 
         except:
             self.logger.exception("Exception in Device Start:")
