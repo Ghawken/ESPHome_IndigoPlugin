@@ -9,7 +9,6 @@ try:
 except:
     pass
 import platform
-import asyncio
 import threading
 import subprocess
 import os
@@ -578,12 +577,6 @@ class Plugin(indigo.PluginBase):
         self.logger.info("{0:<30} {1}".format("Architecture:", platform.machine().replace('\n', '')))
         self.logger.info("{0:=^130}".format(" Initializing New Plugin Session "))
         self.logger.info("")
-
-        #if self.debug1:
-        #    self.logger.info("Libaries Updated.  Please run xattr command as below (copy & paste to terminal)")
-        #    self.logger.info("")
-        #    self.logger.info("{}".format("sudo xattr -rd com.apple.quarantine '" + indigo.server.getInstallFolderPath() + "/" + "Plugins'"))
-        #    self.logger.info(u"{0:=^130}".format(" End of Setup "))
 
         self.pluginprefDirectory = '{}/Preferences/Plugins/com.GlennNZ.indigoplugin.ESPHome4Indigo'.format(indigo.server.getInstallFolderPath())
 
