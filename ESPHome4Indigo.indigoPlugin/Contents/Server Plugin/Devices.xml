@@ -257,6 +257,36 @@ If this device is updated or changed, you can re-Press and new devices alone sho
 		</States>
 	</Device>
 
+	<Device type="dimmer" id="ESPcoverType" allowUserCreation="false">
+		<Name>ESPHome Cover</Name>
+		<States>
+			<State id="deviceStatus">
+				<ValueType>String</ValueType>
+				<TriggerLabel>deviceStatus</TriggerLabel>
+				<ControlPageLabel>deviceStatus</ControlPageLabel>
+			</State>
+			      <State id="deviceIsOnline">
+        <ValueType>Boolean</ValueType>
+        <TriggerLabel>Device online?</TriggerLabel>
+        <ControlPageLabel>Device online?</ControlPageLabel>
+      </State>
+			<State id="key">
+				<ValueType>String</ValueType>
+				<TriggerLabel>Key</TriggerLabel>
+				<ControlPageLabel>Key</ControlPageLabel>
+			</State>
+						<State id="name">
+				<ValueType>String</ValueType>
+				<TriggerLabel>Name</TriggerLabel>
+				<ControlPageLabel>Name</ControlPageLabel>
+			</State>
+									<State id="unique_id">
+				<ValueType>String</ValueType>
+				<TriggerLabel>UniqueID</TriggerLabel>
+				<ControlPageLabel>UniqueID</ControlPageLabel>
+			</State>
+		</States>
+	</Device>
 	<Device type="relay" id="ESPswitchType" allowUserCreation="false">
 		<Name>ESPHome Switch</Name>
 		<States>

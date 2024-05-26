@@ -19,6 +19,7 @@ import traceback
 from os import path
 import asyncio
 
+
 import aioesphomeapi
 from aioesphomeapi import (
     APIClient,
@@ -119,18 +120,37 @@ class ESPHome4Indigo:
         except:
             self.logger.exception("Exception")
 
-    def change_callback(self,state):
+    def cover_command(self, key, position, stop):
+        tilt=None
+        position = float(position /100)  ## cov er for esp32 0.0-1.0 expected
+        try:
+            self.loop.create_task(self.cli.cover_command(key, position, tilt=tilt, stop=stop))
+        except:
+            self.logger.exception("Exception")
+
+    def stop_cover_command(self, key, position, stop):
+        tilt=None
+        position = None  ## cov er for esp32 0.0-1.0 expected
+        try:
+            self.loop.create_task(self.cli.cover_command(key, position, tilt=tilt, stop=True))
+        except:
+            self.logger.exception("Exception")
+
+    def change_callback(self,main_state):
         """Print the state changes of the device.."""
         try:
             if self.plugin.debug2:
-                self.plugin.logger.debug(f" Received: {state}")
+                self.plugin.logger.debug(f"Received: {main_state}")
                 self.plugin.logger.debug(f"Main Linked Core device = {self.deviceid}")
+            state = main_state
             key = state.key
             if hasattr(state, "state"):
                 state = state.state
             elif hasattr(state,'legacy_state'):
                 state = state.legacy_state
             state = f"{state:5f}" if isinstance(state, float) else state
+            if self.plugin.debug2:
+                self.plugin.logger.debug(f"New Received: {state}")
             for device in indigo.devices.iter("self"):
                 if "linkedPrimaryIndigoDeviceId" in device.pluginProps:  ## Check is linked device not core device
                     if device.pluginProps["linkedPrimaryIndigoDeviceId"]== self.deviceid:  ## checked linked to this particularly Core group as Keys can be same
@@ -138,6 +158,9 @@ class ESPHome4Indigo:
                             if str(device.states['key'])== str(key):
                                 if self.plugin.debug2:
                                     self.plugin.logger.debug(f"Matching device {device.name} to received state {state} found.  Updating")
+                                    if state == '  nan':
+                                        self.plugin.logger.debug("Nan state found using 0")
+                                        state = 0
                                 device.updateStateOnServer(key="sensorValue", value=state, uiValue=str(state)+" "+device.states['units'])
                         elif device.deviceTypeId =="ESPText":
                             if str(device.states['key'])== str(key):
@@ -149,6 +172,18 @@ class ESPHome4Indigo:
                                 if self.plugin.debug2:
                                     self.plugin.logger.debug(f"Matching device {device.name} to received state {state} found.  Updating")
                                 device.updateStateOnServer(key="onOffState", value=state)
+                        elif device.deviceTypeId =="ESPcoverType":
+                            if str(device.states['key'])== str(key):
+                                if hasattr(main_state,"position"):
+                                    position = main_state.position
+                                    if self.plugin.debug2:
+                                        self.plugin.logger.debug(f"Matching device {device.name} to received position info {position} found.  Updating")
+                                    device.updateStateOnServer("brightnessLevel", position)
+                                else:
+                                    if self.plugin.debug2:
+                                        self.plugin.logger.debug(f"Matching device {device.name} to received state {state} found.  Updating")
+                                    device.updateStateOnServer(key="onOffState", value=state)
+
                         elif device.deviceTypeId =="ESPbinarySensor":
                             if str(device.states['key'])== str(key):
                                 if self.plugin.debug2:
@@ -326,6 +361,34 @@ class ESPHome4Indigo:
                         self.plugin.logger.info(f"Created New Indigo Switch Device for ESPHome device: {entity.name}")
                         newdevice.updateStatesOnServer(stateList)
                         x=x+1
+
+                    elif type(entity) == aioesphomeapi.model.CoverInfo:  # or type(entity) == aioesphomeapi.model.ButtonInfo:
+                        props_dict["SupportsStatusRequest"] = True
+                        props_dict["SupportsOnState"] = True
+                        # self.plugin.logger.info(f"{entity}")
+                        assumed_state = entity.assumed_state if hasattr(entity, "assumed_state") else False
+                        props_dict["device_number"] = x - 1
+                        newdevice = indigo.device.create(indigo.kProtocol.Plugin,
+                                                         deviceTypeId="ESPcoverType",
+                                                         address=mainESPCoredevice.address,
+                                                         # groupWithDevice=int(mainESPCoredevice.id), ## Don't group first device Leave core seperate
+                                                         name=mainESPCoredevice.name + "-" + entity.name,
+                                                         folder=mainESPCoredevice.folderId,
+                                                         description=mainESPCoredevice.name + "-Cover",
+                                                         props=props_dict)
+                        stateList = [
+                            {'key': 'deviceIsOnline', 'value': True},
+                            {'key': 'deviceStatus', 'value': "Connected"},
+                            {'key': 'key', 'value': entity.key},
+                            {'key': 'onOffState', 'value': assumed_state},
+                            {'key': 'name', 'value': entity.name},
+                            {'key': 'unique_id', 'value': entity.unique_id}
+                        ]
+                        asyncio.sleep(3)
+                        first_device_id = newdevice.id
+                        self.plugin.logger.info(f"Created New Indigo Switch Device for ESPHome device: {entity.name}")
+                        newdevice.updateStatesOnServer(stateList)
+                        x = x + 1
                     elif type(entity) == aioesphomeapi.model.ButtonInfo:
                         props_dict["SupportsStatusRequest"] = True
                         props_dict["SupportsOnState"] = True
@@ -452,6 +515,32 @@ class ESPHome4Indigo:
                         ]
                         asyncio.sleep(3)
                         self.plugin.logger.info(f"Created New Indigo Switch Device for ESPHome device: {entity.name}")
+                        newdevice.updateStatesOnServer(stateList)
+                        x=x+1
+                    elif type(entity) == aioesphomeapi.model.CoverInfo:# == aioesphomeapi.model.ButtonInfo:
+                        props_dict["SupportsStatusRequest"] = True
+                        props_dict["SupportsOnState"] = True
+                        # self.plugin.logger.info(f"{entity}")
+                        props_dict["device_number"] = x - 1
+                        assumed_state = entity.assumed_state if hasattr(entity,"assumed_state") else False
+                        newdevice = indigo.device.create(indigo.kProtocol.Plugin,
+                                                         deviceTypeId="ESPcoverType",
+                                                         address=mainESPCoredevice.address,
+                                                         groupWithDevice=int(first_device_id),## Don't group first device Leave core seperate
+                                                         name=mainESPCoredevice.name + "-" + entity.name,
+                                                         folder=mainESPCoredevice.folderId,
+                                                         description=mainESPCoredevice.name + "-Cover",
+                                                         props=props_dict)
+                        stateList = [
+                            {'key': 'deviceIsOnline', 'value': True},
+                            {'key': 'deviceStatus', 'value': "Connected"},
+                            {'key': 'key', 'value': entity.key},
+                            {'key': 'onOffState', 'value': assumed_state},
+                            {'key': 'name', 'value': entity.name},
+                            {'key': 'unique_id', 'value': entity.unique_id}
+                        ]
+                        asyncio.sleep(3)
+                        self.plugin.logger.info(f"Created New Indigo Cover/Door Device for ESPHome device: {entity.name}")
                         newdevice.updateStatesOnServer(stateList)
                         x=x+1
                     elif type(entity) == aioesphomeapi.model.ButtonInfo:
@@ -803,7 +892,22 @@ class Plugin(indigo.PluginBase):
             self.logger.info(f"{ESPCoreDevice.encryptionkey=}")
             self.logger.info(f"{ESPCoreDevice.loop=}")
 
+    def action_stop_cover(self,action):  # increase by 0.5 degrees
+        self.logger.debug(u'Action Stop Cover called as Action.')
+        try:
+            deviceID = action.props.get("deviceID", "")
+            if deviceID == ""  :
+                self.logger.info("Action details not correct.  No Cover Device selected.")
+                return
+            dev = indigo.devices[int(deviceID)]
+            for ESPHomethreads in self.ESPHomeThreads:
+                if dev.deviceTypeId == "ESPcoverType":
+                    if str(ESPHomethreads.deviceid) == str(dev.pluginProps['linkedPrimaryIndigoDeviceId']):
+                        ESPHomethreads.stop_cover_command(key=int(dev.states['key']), position=None, stop=True)
+                        self.logger.info(f"Sending STOP to {dev.name}")
 
+        except:
+            self.logger.exception("action exception")
     ########################################
     # Relay / Dimmer Action callback
     ######################
@@ -823,6 +927,11 @@ class Plugin(indigo.PluginBase):
                         dev.updateStateOnServer("onOffState", True)
                         self.sleep(0.1)
                         dev.updateStateOnServer("onOffState", False)
+                elif dev.deviceTypeId == "ESPcoverType":
+                    if str(ESPHomethreads.deviceid) == str(dev.pluginProps['linkedPrimaryIndigoDeviceId']):
+                        ESPHomethreads.cover_command(key=int(dev.states['key']), position=float(100), stop=False)
+                        self.logger.info(f"sent \"{dev.name}\" set Position to {100}")
+                        dev.updateStateOnServer("brightnessLevel", 100)
         ###### TURN OFF ######
             elif action.deviceAction == indigo.kDeviceAction.TurnOff:
             # Command hardware module (dev) to turn OFF here:
@@ -831,6 +940,11 @@ class Plugin(indigo.PluginBase):
                         ESPHomethreads.switch_command(key=int(dev.states['key']),state=False)
                         self.logger.info(f"sent \"{dev.name}\" off")
                         dev.updateStateOnServer("onOffState", False)
+                elif dev.deviceTypeId == "ESPcoverType":
+                    if str(ESPHomethreads.deviceid) == str(dev.pluginProps['linkedPrimaryIndigoDeviceId']):
+                        ESPHomethreads.cover_command(key=int(dev.states['key']), position=float(0), stop=False)
+                        self.logger.info(f"sent \"{dev.name}\" set Position to {0}")
+                        dev.updateStateOnServer("brightnessLevel", 0)
                 elif dev.deviceTypeId =="ESPbuttonType":
                     self.logger.info("Toggle Button Not possible.  Always Off. ")
 
@@ -880,13 +994,21 @@ class Plugin(indigo.PluginBase):
                     # If success then log that the command was successfully sent.
                         self.logger.info(f"sent \"{dev.name}\" toggle")
                     # And then tell the Indigo Server to update the state:
-                if dev.deviceTypeId == "ESPbuttonType":
+                elif dev.deviceTypeId == "ESPbuttonType":
                     if str(ESPHomethreads.deviceid) == str(dev.pluginProps['linkedPrimaryIndigoDeviceId']):
                         ESPHomethreads.button_command(key=int(dev.states['key']), state=new_on_state)
                         dev.updateStateOnServer("onOffState", new_on_state)
                     # If success then log that the command was successfully sent.
                         self.logger.info(f"sent \"{dev.name}\" toggle")
                         dev.updateStateOnServer("onOffState", False)
+                elif dev.deviceTypeId == "ESPcoverType":
+                    if str(ESPHomethreads.deviceid) == str(dev.pluginProps['linkedPrimaryIndigoDeviceId']):
+                        if new_on_state:
+                            ESPHomethreads.cover_command(key=int(dev.states['key']), position=float(100), stop=False)
+                        else:
+                            ESPHomethreads.cover_command(key=int(dev.states['key']), position=float(0), stop=False)
+                        self.logger.info(f"sent \"{dev.name}\" set Position to {new_brightness}")
+                        dev.updateStateOnServer("brightnessLevel", new_brightness)
 
 
             ###### SET BRIGHTNESS ######
@@ -894,17 +1016,11 @@ class Plugin(indigo.PluginBase):
                 # Command hardware module (dev) to set brightness here:
                 # ** IMPLEMENT ME **
                 new_brightness = action.actionValue
-                send_success = True        # Set to False if it failed.
-
-                if send_success:
-                    # If success then log that the command was successfully sent.
-                    self.logger.info(f"sent \"{dev.name}\" set brightness to {new_brightness}")
-
-                    # And then tell the Indigo Server to update the state:
-                    dev.updateStateOnServer("brightnessLevel", new_brightness)
-                else:
-                    # Else log failure but do NOT update state on Indigo Server.
-                    self.logger.error(f"send \"{dev.name}\" set brightness to {new_brightness} failed")
+                if dev.deviceTypeId == "ESPcoverType":
+                    if str(ESPHomethreads.deviceid) == str(dev.pluginProps['linkedPrimaryIndigoDeviceId']):
+                        ESPHomethreads.cover_command(key=int(dev.states['key']), position=float(new_brightness), stop=False)
+                        self.logger.info(f"sent \"{dev.name}\" set Position to {new_brightness}")
+                        dev.updateStateOnServer("brightnessLevel", new_brightness)
 
             ###### BRIGHTEN BY ######
             elif action.deviceAction == indigo.kDeviceAction.BrightenBy:

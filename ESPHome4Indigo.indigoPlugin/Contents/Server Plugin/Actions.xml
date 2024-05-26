@@ -9,15 +9,13 @@
      backlightBrightness state added to Devices.xml.
 -->
 <Actions>
-    <Action id="setBacklightBrightness" deviceFilter="self">
-        <Name>Set Backlight Brightness</Name>
-        <CallbackMethod>set_backlight_brightness</CallbackMethod>
+ <Action id="stopCover">
+        <Name>Run Stop Door / Cover</Name>
+        <CallbackMethod>action_stop_cover</CallbackMethod>
         <ConfigUI>
-            <Field id="description" type="textfield" hidden="true">
-                <Label>runtime calculated</Label>
-            </Field>
-            <Field id="brightness" type="textfield" defaultValue="80">
-                <Label>Backlight Brightness:</Label>
+            <Field id="deviceID" type="menu">
+                <Label>Select Cover to Stop:</Label>
+                <List class="indigo.devices" filter="self.ESPcoverType"/>
             </Field>
         </ConfigUI>
     </Action>
