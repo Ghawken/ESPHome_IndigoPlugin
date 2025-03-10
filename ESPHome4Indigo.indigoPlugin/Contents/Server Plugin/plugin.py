@@ -102,6 +102,7 @@ class ESPHome4Indigo:
                 self.password,
                 client_info=f"Indigo {devicename}",
                 noise_psk=encryptionkey or None)
+
             self._killConnection = False
             #.create_task(self.loop_esphome(cli=self.cli, deviceid=self.deviceid) )
             self._task = self.loop.create_task( self.loop_esphome(deviceid=self.deviceid) )
@@ -136,7 +137,7 @@ class ESPHome4Indigo:
         except:
             self.logger.exception("Exception")
 
-    def change_callback(self,main_state):
+    def change_callback(self, main_state):
         """Print the state changes of the device.."""
         try:
             if self.plugin.debug2:
@@ -645,7 +646,7 @@ class ESPHome4Indigo:
                     await self.updateDeviceInfo(mainESPCoredevice, device_info, api_version)
 
                 self.plugin.logger.info(f"Connected to, and subscribing for State Changes for {mainESPCoredevice.name}")
-                await self.cli.subscribe_states(self.change_callback)
+                self.cli.subscribe_states(self.change_callback)
 
                 while True:
                     self.cli._get_connection()  ## Causes exception when not connected.
@@ -662,7 +663,7 @@ class ESPHome4Indigo:
             except aioesphomeapi.core.APIConnectionError:
                 self.plugin.logger.debug(f"APIConnection Error Exception. {self.devicename}  Retry")
             except Exception:
-                self.plugin.logger.debug("Exception in Loop_ATV:  Should restart.", exc_info=True)
+                self.plugin.logger.debug("Exception in Loop:  Should restart.", exc_info=True)
 
             if self._killConnection:
                 self.plugin.logger.debug("Kill Connection actioned.  Loop should now die.")
@@ -1005,22 +1006,36 @@ class Plugin(indigo.PluginBase):
                     if str(ESPHomethreads.deviceid) == str(dev.pluginProps['linkedPrimaryIndigoDeviceId']):
                         if new_on_state:
                             ESPHomethreads.cover_command(key=int(dev.states['key']), position=float(100), stop=False)
+                            bright_state = int(100)
                         else:
                             ESPHomethreads.cover_command(key=int(dev.states['key']), position=float(0), stop=False)
-                        self.logger.info(f"sent \"{dev.name}\" set Position to {new_brightness}")
-                        dev.updateStateOnServer("brightnessLevel", new_brightness)
+                            bright_state = int(100)
+                        self.logger.info(f"sent \"{dev.name}\" set Position to {bright_state}")
+                        dev.updateStateOnServer("brightnessLevel", bright_state)
 
 
             ###### SET BRIGHTNESS ######
             elif action.deviceAction == indigo.kDeviceAction.SetBrightness:
-                # Command hardware module (dev) to set brightness here:
-                # ** IMPLEMENT ME **
+
                 new_brightness = action.actionValue
+                try:
+                    use_brightness = int(new_brightness)
+                except:
+                    self.logger.debug(f"Exception Caught",exc_info=True)
+                    use_brightness = 0
+                self.logger.debug("Brightness Received {0}".format(new_brightness))
+                use_brightness = use_brightness * 100
+                self.logger.debug("Setting Brightness to {0}".format(new_brightness))
+                if use_brightness >=100:
+                    use_brightness = 100
+                elif use_brightness <=0:
+                    use_brightness = 0
                 if dev.deviceTypeId == "ESPcoverType":
                     if str(ESPHomethreads.deviceid) == str(dev.pluginProps['linkedPrimaryIndigoDeviceId']):
-                        ESPHomethreads.cover_command(key=int(dev.states['key']), position=float(new_brightness), stop=False)
-                        self.logger.info(f"sent \"{dev.name}\" set Position to {new_brightness}")
-                        dev.updateStateOnServer("brightnessLevel", new_brightness)
+                        ESPHomethreads.cover_command(key=int(dev.states['key']), position=float(use_brightness), stop=False)
+                        self.logger.info(f"sent \"{dev.name}\" set Position to {use_brightness}")
+
+                        dev.updateStateOnServer("brightnessLevel", use_brightness)
 
             ###### BRIGHTEN BY ######
             elif action.deviceAction == indigo.kDeviceAction.BrightenBy:
