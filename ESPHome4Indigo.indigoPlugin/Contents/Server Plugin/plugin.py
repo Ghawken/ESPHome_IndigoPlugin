@@ -114,20 +114,21 @@ class ESPHome4Indigo:
         try:
             self.loop.create_task(self.cli.switch_command(key, state))
         except:
-            self.logger.exception("Exception")
+            self.plugin.logger.exception("Exception in Switch Command:\n")
     def button_command(self, key, state):
         try:
             self.loop.create_task(self.cli.button_command(key))
         except:
-            self.logger.exception("Exception")
+            self.plugin.logger.exception("Exception in Button Command:\n")
 
     def cover_command(self, key, position, stop):
         tilt=None
-        position = float(position /100)  ## cov er for esp32 0.0-1.0 expected
+        position = float( position / 100)## cov er for esp32 0.0-1.0 expected
+
         try:
             self.loop.create_task(self.cli.cover_command(key, position, tilt=tilt, stop=stop))
         except:
-            self.logger.exception("Exception")
+            self.plugin.logger.exception("Exception in Cover Command:\n")
 
     def stop_cover_command(self, key, position, stop):
         tilt=None
@@ -135,7 +136,7 @@ class ESPHome4Indigo:
         try:
             self.loop.create_task(self.cli.cover_command(key, position, tilt=tilt, stop=True))
         except:
-            self.logger.exception("Exception")
+            self.plugin.logger.exception("Exception in stop Cover Command:\n")
 
     def change_callback(self, main_state):
         """Print the state changes of the device.."""
@@ -149,7 +150,7 @@ class ESPHome4Indigo:
                 state = state.state
             elif hasattr(state,'legacy_state'):
                 state = state.legacy_state
-            state = f"{state:5f}" if isinstance(state, float) else state
+            state = f"{state:.5f}".rstrip("0").rstrip(".") if isinstance(state, float) else state
             if self.plugin.debug2:
                 self.plugin.logger.debug(f"New Received: {state}")
             for device in indigo.devices.iter("self"):
@@ -162,28 +163,41 @@ class ESPHome4Indigo:
                                     if state == '  nan':
                                         self.plugin.logger.debug("Nan state found using 0")
                                         state = 0
-                                device.updateStateOnServer(key="sensorValue", value=state, uiValue=str(state)+" "+device.states['units'])
+                                device.updateStateOnServer(key="sensorValue", value=state, uiValue=str(state)+" "+str(device.states['units']))
                         elif device.deviceTypeId =="ESPText":
                             if str(device.states['key'])== str(key):
                                 if self.plugin.debug2:
                                     self.plugin.logger.debug(f"Matching device {device.name} to received state {state} found.  Updating")
                                 device.updateStateOnServer(key="actual_state", value=state, uiValue=str(state))
+
                         elif device.deviceTypeId =="ESPswitchType":
                             if str(device.states['key'])== str(key):
                                 if self.plugin.debug2:
                                     self.plugin.logger.debug(f"Matching device {device.name} to received state {state} found.  Updating")
                                 device.updateStateOnServer(key="onOffState", value=state)
-                        elif device.deviceTypeId =="ESPcoverType":
-                            if str(device.states['key'])== str(key):
-                                if hasattr(main_state,"position"):
-                                    position = main_state.position
-                                    if self.plugin.debug2:
-                                        self.plugin.logger.debug(f"Matching device {device.name} to received position info {position} found.  Updating")
-                                    device.updateStateOnServer("brightnessLevel", position)
-                                else:
-                                    if self.plugin.debug2:
-                                        self.plugin.logger.debug(f"Matching device {device.name} to received state {state} found.  Updating")
-                                    device.updateStateOnServer(key="onOffState", value=state)
+                        elif device.deviceTypeId == "ESPcoverType":
+                            if str(device.states['key']) == str(key):
+                                try:
+                                    if hasattr(main_state, "position"):
+                                        raw_position = main_state.position
+                                        try:
+                                            position_float = float(raw_position)
+                                            int_position = int(round(position_float * 100))
+                                            int_position = max(0, min(100, int_position))
+                                        except (ValueError, TypeError) as conversion_error:
+                                            self.plugin.logger.error( f"Conversion error for device {device.name} with raw position '{raw_position}': {conversion_error}")
+                                            int_position = None
+                                        if int_position is not None:
+                                            if self.plugin.debug2: self.plugin.logger.debug( f"Matching device {device.name} to received position info {raw_position} converted to {int_position}. Updating")
+                                            device.updateStateOnServer("brightnessLevel", int_position)
+                                        else:
+                                            self.plugin.logger.error( f"Skipping brightness update for device {device.name} due to conversion error.")
+                                    else:
+                                        if self.plugin.debug2: self.plugin.logger.debug(f"Matching device {device.name} to received state {state}. Updating")
+                                        device.updateStateOnServer(key="onOffState", value=state)
+                                except Exception as e:
+                                    self.plugin.logger.error(
+                                        f"Error processing position for device {device.name}: {e}")
 
                         elif device.deviceTypeId =="ESPbinarySensor":
                             if str(device.states['key'])== str(key):
@@ -930,7 +944,7 @@ class Plugin(indigo.PluginBase):
                         dev.updateStateOnServer("onOffState", False)
                 elif dev.deviceTypeId == "ESPcoverType":
                     if str(ESPHomethreads.deviceid) == str(dev.pluginProps['linkedPrimaryIndigoDeviceId']):
-                        ESPHomethreads.cover_command(key=int(dev.states['key']), position=float(100), stop=False)
+                        ESPHomethreads.cover_command(key=int(dev.states['key']), position=100, stop=False)
                         self.logger.info(f"sent \"{dev.name}\" set Position to {100}")
                         dev.updateStateOnServer("brightnessLevel", 100)
         ###### TURN OFF ######
@@ -943,7 +957,7 @@ class Plugin(indigo.PluginBase):
                         dev.updateStateOnServer("onOffState", False)
                 elif dev.deviceTypeId == "ESPcoverType":
                     if str(ESPHomethreads.deviceid) == str(dev.pluginProps['linkedPrimaryIndigoDeviceId']):
-                        ESPHomethreads.cover_command(key=int(dev.states['key']), position=float(0), stop=False)
+                        ESPHomethreads.cover_command(key=int(dev.states['key']), position=0, stop=False)
                         self.logger.info(f"sent \"{dev.name}\" set Position to {0}")
                         dev.updateStateOnServer("brightnessLevel", 0)
                 elif dev.deviceTypeId =="ESPbuttonType":
@@ -1005,10 +1019,10 @@ class Plugin(indigo.PluginBase):
                 elif dev.deviceTypeId == "ESPcoverType":
                     if str(ESPHomethreads.deviceid) == str(dev.pluginProps['linkedPrimaryIndigoDeviceId']):
                         if new_on_state:
-                            ESPHomethreads.cover_command(key=int(dev.states['key']), position=float(100), stop=False)
+                            ESPHomethreads.cover_command(key=int(dev.states['key']), position=100, stop=False)
                             bright_state = int(100)
                         else:
-                            ESPHomethreads.cover_command(key=int(dev.states['key']), position=float(0), stop=False)
+                            ESPHomethreads.cover_command(key=int(dev.states['key']), position=0, stop=False)
                             bright_state = int(100)
                         self.logger.info(f"sent \"{dev.name}\" set Position to {bright_state}")
                         dev.updateStateOnServer("brightnessLevel", bright_state)
@@ -1024,7 +1038,6 @@ class Plugin(indigo.PluginBase):
                     self.logger.debug(f"Exception Caught",exc_info=True)
                     use_brightness = 0
                 self.logger.debug("Brightness Received {0}".format(new_brightness))
-                use_brightness = use_brightness * 100
                 self.logger.debug("Setting Brightness to {0}".format(new_brightness))
                 if use_brightness >=100:
                     use_brightness = 100
