@@ -112,12 +112,13 @@ class ESPHome4Indigo:
 
     def switch_command(self, key, state):
         try:
-            self.loop.create_task(self.cli.switch_command(key, state))
+            self.cli.switch_command(key, state)
         except:
             self.plugin.logger.exception("Exception in Switch Command:\n")
+
     def button_command(self, key, state):
         try:
-            self.loop.create_task(self.cli.button_command(key))
+            self.cli.button_command(key)
         except:
             self.plugin.logger.exception("Exception in Button Command:\n")
 
@@ -126,7 +127,7 @@ class ESPHome4Indigo:
         position = float( position / 100)## cov er for esp32 0.0-1.0 expected
 
         try:
-            self.loop.create_task(self.cli.cover_command(key, position, tilt=tilt, stop=stop))
+            self.cli.cover_command(key, position, tilt=tilt, stop=stop)
         except:
             self.plugin.logger.exception("Exception in Cover Command:\n")
 
@@ -134,7 +135,7 @@ class ESPHome4Indigo:
         tilt=None
         position = None  ## cov er for esp32 0.0-1.0 expected
         try:
-            self.loop.create_task(self.cli.cover_command(key, position, tilt=tilt, stop=True))
+            self.cli.cover_command(key, position, tilt=tilt, stop=True)
         except:
             self.plugin.logger.exception("Exception in stop Cover Command:\n")
 
@@ -857,7 +858,8 @@ class Plugin(indigo.PluginBase):
 
     def deviceStartComm(self, device):
         try:
-            self.logger.debug(f"{device.name}: Starting {device.deviceTypeId} Device {device.id} ")
+            if self.debug3:
+                self.logger.debug(f"{device.name}: Starting {device.deviceTypeId} Device {device.id} ")
             ipaddress = device.pluginProps.get("ESPHomeAddress","")
             password = device.pluginProps.get("password","")
             encryptionkey = device.pluginProps.get("encryptionkey", "")
