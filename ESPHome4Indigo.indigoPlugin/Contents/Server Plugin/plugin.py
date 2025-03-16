@@ -179,8 +179,8 @@ class ESPHome4Indigo:
                         elif device.deviceTypeId == "ESPcoverType":
                             if str(device.states['key']) == str(key):
                                 try:
-                                    if hasattr(main_state, "position"):
-                                        raw_position = main_state.position
+                                    if hasattr(state, "position"):
+                                        raw_position = state.position
                                         try:
                                             position_float = float(raw_position)
                                             int_position = int(round(position_float * 100))
