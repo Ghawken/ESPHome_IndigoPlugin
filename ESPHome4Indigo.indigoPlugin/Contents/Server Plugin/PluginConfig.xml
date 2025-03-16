@@ -34,7 +34,7 @@
 
     <Field id="debug4" type="checkbox" tooltip="Enabling will result .">
         <Label/>
-        <Description>4. Debug 4</Description>
+        <Description>4. Log Command Calls / Wrapper </Description>
     </Field>
 
     <Field id="debug5" type="checkbox" tooltip="Enabling will .">
