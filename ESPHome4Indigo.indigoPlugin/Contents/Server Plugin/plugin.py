@@ -1213,7 +1213,7 @@ class Plugin(indigo.PluginBase):
                         self.logger.info(f"sent \"{dev.name}\" set Position to {use_brightness}")
                         dev.updateStateOnServer("brightnessLevel", use_brightness)
 
-            ###### BRIGHTEN BY ######
+            ###### BRIGHTEN BY ######frx
             elif action.deviceAction == indigo.kDeviceAction.BrightenBy:
                 # Command hardware module (dev) to do a relative brighten here:
                 # ** IMPLEMENT ME **
