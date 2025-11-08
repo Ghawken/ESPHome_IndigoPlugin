@@ -112,17 +112,13 @@ class ESPHome4Indigo:
             self.plugin.logger.debug("Within init of ESP Home4Indigo")
             self.deviceid = deviceid
             self.host = host
-            self.port = port
+            # Normalize port to int with a sensible default
+            self.port = int(port) if str(port).strip() else 6053
             self.password = password
             self.encryptionkey = encryptionkey
             self.loop = loop
             self.devicename = devicename
-            self.cli = APIClient(
-                self.host,
-                self.port,
-                self.password,
-                client_info=f"Indigo {devicename}",
-                noise_psk=encryptionkey or None)
+            self.cli = None
 
             self._killConnection = False
             #.create_task(self.loop_esphome(cli=self.cli, deviceid=self.deviceid) )
@@ -184,7 +180,11 @@ class ESPHome4Indigo:
                 state = state.state
             elif hasattr(state,'legacy_state'):
                 state = state.legacy_state
+                # Minimal addition: guard NaN/Inf before original 5-decimal formatting
+            if isinstance(state, float) and (math.isnan(state) or math.isinf(state)):
+                state = 0.0
             state = f"{state:.5f}".rstrip("0").rstrip(".") if isinstance(state, float) else state
+
             if self.plugin.debug2:
                 self.plugin.logger.debug(f"New Received: {state=}")
             for device in indigo.devices.iter("self"):
@@ -323,7 +323,6 @@ class ESPHome4Indigo:
         self.enable_linked()
 
 
-
     async def setupDevices(self, mainESPCoredevice, device_info, entities, services, api_version):
         self.plugin.logger.info(f"Creating child devices for {mainESPCoredevice.name}")
         await self.updateDeviceInfo(mainESPCoredevice, device_info, api_version)
@@ -333,6 +332,17 @@ class ESPHome4Indigo:
         self.plugin.logger.debug(f"{props}")
         props["deviceSetup"] = True
         mainESPCoredevice.replacePluginPropsOnServer(indigo.Dict(props))
+
+        # Helper to generate a stable unique id across aioesphomeapi versions
+        def _safe_uid(entity, device_info):
+            uid = getattr(entity, "unique_id", None)
+            if uid:
+                return str(uid)
+            oid = getattr(entity, "object_id", None)
+            if oid:
+                return f"{device_info.mac_address}-{oid}"
+            # Fallback to mac + key if needed
+            return f"{device_info.mac_address}-{getattr(entity, 'key', '')}"
 
         try:
             newstates = []
@@ -345,9 +355,24 @@ class ESPHome4Indigo:
             for entity in entities:
                 self.plugin.logger.debug(f"{entity} ")
                 device_exists = False
+
+                # Compute a backward/forward compatible unique identifier for this entity
+                eid = _safe_uid(entity, device_info)
+
                 for check_dev in indigo.devices.iter("self"):
                     if "unique_id" in check_dev.states:
-                        if str(check_dev.states["unique_id"]) == str(entity.unique_id):
+                        # Build candidate IDs to match against legacy and new formats
+                        candidate_ids = set()
+                        candidate_ids.add(eid)
+                        legacy_unique = getattr(entity, "unique_id", None)
+                        if legacy_unique:
+                            candidate_ids.add(str(legacy_unique))
+                        oid = getattr(entity, "object_id", None)
+                        if oid:
+                            candidate_ids.add(str(oid))
+                        candidate_ids.add(str(getattr(entity, "key", "")))
+
+                        if str(check_dev.states["unique_id"]) in candidate_ids:
                             ## Device already exists.
                             self.plugin.logger.info(f"{check_dev.name} seems to already exists based on unique_id, hence not recreated.")
                             stateList = [
@@ -355,11 +380,11 @@ class ESPHome4Indigo:
                                 {'key': 'deviceStatus', 'value': "Connected"},
                                 {'key': 'key', 'value': entity.key},
                                 {'key': 'name', 'value': entity.name},
-                                {'key': 'unique_id', 'value': entity.unique_id}
+                                {'key': 'unique_id', 'value': eid}
                             ]
                             asyncio.sleep(3)
                             check_dev.updateStatesOnServer(stateList)
-                            x =x +1
+                            x = x + 1
                             first_device_id = check_dev.id
                             device_exists = True
                             break
@@ -367,7 +392,7 @@ class ESPHome4Indigo:
                     device_exists = False
                     continue  ## don't recreate the exisiting device
 
-                if x== 1:
+                if x == 1:
                     if type(entity) == aioesphomeapi.model.SensorInfo:
                         props_dict["SupportsSensorValue"] = True
                         props_dict["SupportsOnState"] = True
@@ -386,13 +411,13 @@ class ESPHome4Indigo:
                             {'key': 'key', 'value': entity.key},
                             {'key': 'units', 'value': entity.unit_of_measurement},
                             {'key': 'name', 'value': entity.name},
-                            {'key': 'unique_id', 'value': entity.unique_id}
+                            {'key': 'unique_id', 'value': eid}
                         ]
                         asyncio.sleep(3)
                         self.plugin.logger.info(f"Created New Indigo Sensor Device for ESPHome device: {entity.name}")
                         first_device_id = newdevice.id
                         newdevice.updateStatesOnServer(stateList)
-                        x=x+1
+                        x = x + 1
                     ## BinarySesnor
                     elif type(entity) == aioesphomeapi.model.BinarySensorInfo:
                         props_dict["SupportsSensorValue"] = False
@@ -411,13 +436,13 @@ class ESPHome4Indigo:
                             {'key': 'deviceStatus', 'value': "Connected"},
                             {'key': 'key', 'value': entity.key},
                             {'key': 'name', 'value': entity.name},
-                            {'key': 'unique_id', 'value': entity.unique_id}
+                            {'key': 'unique_id', 'value': eid}
                         ]
                         asyncio.sleep(3)
                         first_device_id = newdevice.id
                         self.plugin.logger.info(f"Created New Indigo Sensor Device for ESPHome device: {entity.name}")
                         newdevice.updateStatesOnServer(stateList)
-                        x=x+1
+                        x = x + 1
                     elif type(entity) == aioesphomeapi.model.TextSensorInfo or type(entity) == aioesphomeapi.model.NumberInfo:
                         props_dict["SupportsSensorValue"] = False
                         props_dict["SupportsOnState"] = False
@@ -435,18 +460,17 @@ class ESPHome4Indigo:
                             {'key': 'deviceStatus', 'value': "Connected"},
                             {'key': 'key', 'value': entity.key},
                             {'key': 'name', 'value': entity.name},
-                            {'key': 'unique_id', 'value': entity.unique_id}
+                            {'key': 'unique_id', 'value': eid}
                         ]
                         asyncio.sleep(3)
                         first_device_id = newdevice.id
                         self.plugin.logger.info(f"Created New Indigo Sensor Device for ESPHome device: {entity.name}")
                         newdevice.updateStatesOnServer(stateList)
-                        x=x+1
+                        x = x + 1
                     ## Switch
                     elif type(entity) == aioesphomeapi.model.SwitchInfo: # or type(entity) == aioesphomeapi.model.ButtonInfo:
                         props_dict["SupportsStatusRequest"] = True
                         props_dict["SupportsOnState"] = True
-                        # self.plugin.logger.info(f"{entity}")
                         assumed_state = entity.assumed_state if hasattr(entity,"assumed_state") else False
                         props_dict["device_number"] = x - 1
                         newdevice = indigo.device.create(indigo.kProtocol.Plugin,
@@ -463,18 +487,17 @@ class ESPHome4Indigo:
                             {'key': 'key', 'value': entity.key},
                             {'key': 'onOffState', 'value': assumed_state},
                             {'key': 'name', 'value': entity.name},
-                            {'key': 'unique_id', 'value': entity.unique_id}
+                            {'key': 'unique_id', 'value': eid}
                         ]
                         asyncio.sleep(3)
                         first_device_id = newdevice.id
                         self.plugin.logger.info(f"Created New Indigo Switch Device for ESPHome device: {entity.name}")
                         newdevice.updateStatesOnServer(stateList)
-                        x=x+1
+                        x = x + 1
 
                     elif type(entity) == aioesphomeapi.model.LightInfo:  # or type(entity) == aioesphomeapi.model.ButtonInfo:
                         props_dict["SupportsStatusRequest"] = True
                         props_dict["SupportsOnState"] = True
-                        # self.plugin.logger.info(f"{entity}")
                         assumed_state = entity.assumed_state if hasattr(entity, "assumed_state") else False
                         props_dict["device_number"] = x - 1
                         newdevice = indigo.device.create(indigo.kProtocol.Plugin,
@@ -491,7 +514,7 @@ class ESPHome4Indigo:
                             {'key': 'key', 'value': entity.key},
                             {'key': 'onOffState', 'value': assumed_state},
                             {'key': 'name', 'value': entity.name},
-                            {'key': 'unique_id', 'value': entity.unique_id}
+                            {'key': 'unique_id', 'value': eid}
                         ]
                         asyncio.sleep(3)
                         first_device_id = newdevice.id
@@ -502,7 +525,6 @@ class ESPHome4Indigo:
                     elif type(entity) == aioesphomeapi.model.CoverInfo:  # or type(entity) == aioesphomeapi.model.ButtonInfo:
                         props_dict["SupportsStatusRequest"] = True
                         props_dict["SupportsOnState"] = True
-                        # self.plugin.logger.info(f"{entity}")
                         assumed_state = entity.assumed_state if hasattr(entity, "assumed_state") else False
                         props_dict["device_number"] = x - 1
                         newdevice = indigo.device.create(indigo.kProtocol.Plugin,
@@ -519,7 +541,7 @@ class ESPHome4Indigo:
                             {'key': 'key', 'value': entity.key},
                             {'key': 'onOffState', 'value': assumed_state},
                             {'key': 'name', 'value': entity.name},
-                            {'key': 'unique_id', 'value': entity.unique_id}
+                            {'key': 'unique_id', 'value': eid}
                         ]
                         asyncio.sleep(3)
                         first_device_id = newdevice.id
@@ -529,7 +551,6 @@ class ESPHome4Indigo:
                     elif type(entity) == aioesphomeapi.model.ButtonInfo:
                         props_dict["SupportsStatusRequest"] = True
                         props_dict["SupportsOnState"] = True
-                        # self.plugin.logger.info(f"{entity}")
                         assumed_state = entity.assumed_state if hasattr(entity, "assumed_state") else False
                         props_dict["device_number"] = x - 1
                         newdevice = indigo.device.create(indigo.kProtocol.Plugin,
@@ -546,7 +567,7 @@ class ESPHome4Indigo:
                             {'key': 'key', 'value': entity.key},
                             {'key': 'onOffState', 'value': assumed_state},
                             {'key': 'name', 'value': entity.name},
-                            {'key': 'unique_id', 'value': entity.unique_id}
+                            {'key': 'unique_id', 'value': eid}
                         ]
                         asyncio.sleep(3)
                         first_device_id = newdevice.id
@@ -557,7 +578,6 @@ class ESPHome4Indigo:
                     if type(entity) == aioesphomeapi.model.SensorInfo:
                         props_dict["SupportsSensorValue"] = True
                         props_dict["SupportsOnState"] = True
-                        #self.plugin.logger.info(f"{entity}")
                         props_dict["device_number"] = x - 1
                         newdevice = indigo.device.create(indigo.kProtocol.Plugin,
                                                        deviceTypeId="ESPsensor",
@@ -573,12 +593,12 @@ class ESPHome4Indigo:
                             {'key': 'key', 'value': entity.key},
                             {'key': 'units', 'value': entity.unit_of_measurement},
                             {'key': 'name', 'value': entity.name},
-                            {'key': 'unique_id', 'value': entity.unique_id}
+                            {'key': 'unique_id', 'value': eid}
                         ]
                         asyncio.sleep(3)
                         self.plugin.logger.info(f"Created New Indigo Sensor Device for ESPHome device: {entity.name}")
                         newdevice.updateStatesOnServer(stateList)
-                        x=x+1
+                        x = x + 1
                     elif type(entity) == aioesphomeapi.model.TextSensorInfo or type(entity) == aioesphomeapi.model.NumberInfo:
                         props_dict["SupportsSensorValue"] = False
                         props_dict["SupportsOnState"] = False
@@ -596,18 +616,17 @@ class ESPHome4Indigo:
                             {'key': 'deviceStatus', 'value': "Connected"},
                             {'key': 'key', 'value': entity.key},
                             {'key': 'name', 'value': entity.name},
-                            {'key': 'unique_id', 'value': entity.unique_id}
+                            {'key': 'unique_id', 'value': eid}
                         ]
                         asyncio.sleep(3)
                         first_device_id = newdevice.id
                         self.plugin.logger.info(f"Created New Indigo Sensor Device for ESPHome device: {entity.name}")
                         newdevice.updateStatesOnServer(stateList)
-                        x=x+1
+                        x = x + 1
                     ## BinarySesnor
                     elif type(entity) == aioesphomeapi.model.BinarySensorInfo:
                         props_dict["SupportsSensorValue"] = False
                         props_dict["SupportsOnState"] = True
-                        #self.plugin.logger.info(f"{entity}")
                         props_dict["device_number"] = x - 1
                         newdevice = indigo.device.create(indigo.kProtocol.Plugin,
                                                        deviceTypeId="ESPbinarySensor",
@@ -622,16 +641,15 @@ class ESPHome4Indigo:
                             {'key': 'deviceStatus', 'value': "Connected"},
                             {'key': 'key', 'value': entity.key},
                             {'key': 'name', 'value': entity.name},
-                            {'key': 'unique_id', 'value': entity.unique_id}
+                            {'key': 'unique_id', 'value': eid}
                         ]
                         asyncio.sleep(3)
                         self.plugin.logger.info(f"Created New Indigo Sensor Device for ESPHome device: {entity.name}")
                         newdevice.updateStatesOnServer(stateList)
-                        x=x+1
+                        x = x + 1
                     elif type(entity) == aioesphomeapi.model.SwitchInfo:# == aioesphomeapi.model.ButtonInfo:
                         props_dict["SupportsStatusRequest"] = True
                         props_dict["SupportsOnState"] = True
-                        # self.plugin.logger.info(f"{entity}")
                         props_dict["device_number"] = x - 1
                         assumed_state = entity.assumed_state if hasattr(entity,"assumed_state") else False
                         newdevice = indigo.device.create(indigo.kProtocol.Plugin,
@@ -648,16 +666,15 @@ class ESPHome4Indigo:
                             {'key': 'key', 'value': entity.key},
                             {'key': 'onOffState', 'value': assumed_state},
                             {'key': 'name', 'value': entity.name},
-                            {'key': 'unique_id', 'value': entity.unique_id}
+                            {'key': 'unique_id', 'value': eid}
                         ]
                         asyncio.sleep(3)
                         self.plugin.logger.info(f"Created New Indigo Switch Device for ESPHome device: {entity.name}")
                         newdevice.updateStatesOnServer(stateList)
-                        x=x+1
+                        x = x + 1
                     elif type(entity) == aioesphomeapi.model.LightInfo:# == aioesphomeapi.model.ButtonInfo:
                         props_dict["SupportsStatusRequest"] = True
                         props_dict["SupportsOnState"] = True
-                        # self.plugin.logger.info(f"{entity}")
                         props_dict["device_number"] = x - 1
                         assumed_state = entity.assumed_state if hasattr(entity,"assumed_state") else False
                         newdevice = indigo.device.create(indigo.kProtocol.Plugin,
@@ -674,16 +691,15 @@ class ESPHome4Indigo:
                             {'key': 'key', 'value': entity.key},
                             {'key': 'onOffState', 'value': assumed_state},
                             {'key': 'name', 'value': entity.name},
-                            {'key': 'unique_id', 'value': entity.unique_id}
+                            {'key': 'unique_id', 'value': eid}
                         ]
                         asyncio.sleep(3)
                         self.plugin.logger.info(f"Created New Indigo Cover/Door Device for ESPHome device: {entity.name}")
                         newdevice.updateStatesOnServer(stateList)
-                        x=x+1
+                        x = x + 1
                     elif type(entity) == aioesphomeapi.model.CoverInfo:# == aioesphomeapi.model.ButtonInfo:
                         props_dict["SupportsStatusRequest"] = True
                         props_dict["SupportsOnState"] = True
-                        # self.plugin.logger.info(f"{entity}")
                         props_dict["device_number"] = x - 1
                         assumed_state = entity.assumed_state if hasattr(entity,"assumed_state") else False
                         newdevice = indigo.device.create(indigo.kProtocol.Plugin,
@@ -700,16 +716,15 @@ class ESPHome4Indigo:
                             {'key': 'key', 'value': entity.key},
                             {'key': 'onOffState', 'value': assumed_state},
                             {'key': 'name', 'value': entity.name},
-                            {'key': 'unique_id', 'value': entity.unique_id}
+                            {'key': 'unique_id', 'value': eid}
                         ]
                         asyncio.sleep(3)
                         self.plugin.logger.info(f"Created New Indigo Cover/Door Device for ESPHome device: {entity.name}")
                         newdevice.updateStatesOnServer(stateList)
-                        x=x+1
+                        x = x + 1
                     elif type(entity) == aioesphomeapi.model.ButtonInfo:
                         props_dict["SupportsStatusRequest"] = True
                         props_dict["SupportsOnState"] = True
-                        # self.plugin.logger.info(f"{entity}")
                         assumed_state = entity.assumed_state if hasattr(entity, "assumed_state") else False
                         props_dict["device_number"] = x - 1
                         newdevice = indigo.device.create(indigo.kProtocol.Plugin,
@@ -726,7 +741,7 @@ class ESPHome4Indigo:
                             {'key': 'key', 'value': entity.key},
                             {'key': 'onOffState', 'value': assumed_state},
                             {'key': 'name', 'value': entity.name},
-                            {'key': 'unique_id', 'value': entity.unique_id}
+                            {'key': 'unique_id', 'value': eid}
                         ]
                         asyncio.sleep(3)
                         first_device_id = newdevice.id
@@ -745,10 +760,10 @@ class ESPHome4Indigo:
         self.plugin.logger.debug(f"Disconnecting from device {self.devicename}")
         try:
             self._killConnection = True
-            self.loop.create_task(self.cli.disconnect(force=True))
+            if self.cli is not None:
+                self.loop.create_task(self.cli.disconnect(force=True))
         except:
             self.plugin.logger.debug("Exception:", exc_info=True)
-
     def disconnect_linked(self):
         self.plugin.logger.debug(f"Disconnecting linked devices from {self.devicename}")
         try:
@@ -781,6 +796,17 @@ class ESPHome4Indigo:
         self.plugin.logger.debug(f"Loop ESPHOME Started for {mainESPCoredevice.name}.")
         timeretry = 10
         retries = 0
+
+        # Create the API client on the event loop thread to avoid "no running event loop"
+        if self.cli is None:
+            self.cli = APIClient(
+                self.host,
+                self.port,
+                self.password,
+                client_info=f"Indigo {self.devicename}",
+                noise_psk=self.encryptionkey or None
+            )
+
         while True:
             try:
                 await asyncio.sleep(0.25)
@@ -888,6 +914,28 @@ class Plugin(indigo.PluginBase):
         self.logger.info("{0:<30} {1}".format("Python version:", sys.version.replace('\n', '')))
         self.logger.info("{0:<30} {1}".format("Indigo License:", str(indigo.server.licenseStatus).replace('\n', '')))
         self.logger.info("{0:<30} {1}".format("Architecture:", platform.machine().replace('\n', '')))
+
+        try:
+            # Prefer module attribute if present
+            esphome_api_version = getattr(aioesphomeapi, "__version__", None)
+            if not esphome_api_version:
+                try:
+                    from importlib.metadata import version, PackageNotFoundError
+                except ImportError:  # Python <3.8 fallback
+                    from pkg_resources import get_distribution, DistributionNotFound
+                    try:
+                        esphome_api_version = get_distribution("aioesphomeapi").version
+                    except DistributionNotFound:
+                        esphome_api_version = "unknown"
+                else:
+                    try:
+                        esphome_api_version = version("aioesphomeapi")
+                    except PackageNotFoundError:
+                        esphome_api_version = "unknown"
+            self.logger.info("{0:<30} {1}".format("aioesphomeapi version:", esphome_api_version))
+        except Exception as e:
+            self.logger.info("{0:<30} {1}".format("aioesphomeapi version:", f"error determining ({e})"))
+
         self.logger.info("{0:=^130}".format(" Initializing New Plugin Session "))
         self.logger.info("")
 
@@ -962,6 +1010,7 @@ class Plugin(indigo.PluginBase):
     async def _async_start(self):
         self.logger.debug("_async_start")
         self.logger.debug("Starting event loop and setting up any connections")
+
         # add things you need to do at the start of the plugin here
     async def _async_stop(self):
         while True:
@@ -969,9 +1018,6 @@ class Plugin(indigo.PluginBase):
             if self.stopThread:
                 break
 
-    async def _async_start(self):
-        self.logger.debug("_async_start")
-        self.logger.debug("Starting event loop and setting up any connections")
         # add things you need to do at the start of the plugin here
     ########################################
     # deviceStartComm() is called on application launch for all of our plugin defined
